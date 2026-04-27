@@ -32,9 +32,13 @@ export const changePasswordSchema = z.object({
 });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
-export const resetPasswordSchema = z.object({
-    userId: z.string().min(1),
-    email: z.string().email(),
-    newPassword: z.string().min(8).max(128),
+export const requestPasswordResetSchema = z.object({
+    email: z.string().email().max(255),
 });
-export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>;
+
+export const confirmPasswordResetSchema = z.object({
+    token: z.string().min(32).max(128),
+    newPassword: z.string().min(8, '비밀번호는 최소 8자 이상이어야 합니다.').max(128),
+});
+export type ConfirmPasswordResetInput = z.infer<typeof confirmPasswordResetSchema>;

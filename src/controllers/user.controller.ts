@@ -9,7 +9,8 @@ import {
     LoginInput,
     UpdateUserInput,
     ChangePasswordInput,
-    ResetPasswordInput,
+    RequestPasswordResetInput,
+    ConfirmPasswordResetInput,
 } from '../validators/user.schema';
 
 export const signup = asyncHandler(async (req: Request, res: Response) => {
@@ -45,8 +46,15 @@ export const changePassword = asyncHandler(async (req: AuthRequest, res: Respons
     success(res, null, '비밀번호가 변경되었습니다.');
 });
 
-export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
-    const { userId, email, newPassword } = req.body as ResetPasswordInput;
-    await userService.resetPassword(userId, email, newPassword);
+export const requestPasswordReset = asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body as RequestPasswordResetInput;
+    await userService.requestPasswordReset(email);
+    // 계정 존재 여부 노출 금지(auth.md). 항상 동일한 응답.
+    success(res, null, '재설정 안내 메일을 발송했습니다.', 202);
+});
+
+export const confirmPasswordReset = asyncHandler(async (req: Request, res: Response) => {
+    const { token, newPassword } = req.body as ConfirmPasswordResetInput;
+    await userService.confirmPasswordReset(token, newPassword);
     success(res, null, '비밀번호가 재설정되었습니다.');
 });

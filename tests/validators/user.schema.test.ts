@@ -3,7 +3,8 @@ import {
     loginSchema,
     changePasswordSchema,
     updateUserSchema,
-    resetPasswordSchema,
+    requestPasswordResetSchema,
+    confirmPasswordResetSchema,
     getUserQuerySchema,
 } from '../../src/validators/user.schema';
 
@@ -89,18 +90,27 @@ describe('user.schema', () => {
         });
     });
 
-    describe('resetPasswordSchema', () => {
-        it('requires all three fields', () => {
+    describe('requestPasswordResetSchema', () => {
+        it('이메일만 받는다', () => {
+            expect(requestPasswordResetSchema.safeParse({ email: 'a@b.com' }).success).toBe(true);
+            expect(requestPasswordResetSchema.safeParse({}).success).toBe(false);
+            expect(requestPasswordResetSchema.safeParse({ email: 'bad' }).success).toBe(false);
+        });
+    });
+
+    describe('confirmPasswordResetSchema', () => {
+        it('token 32자 이상 + newPassword 8자 이상', () => {
+            const token = 'a'.repeat(64);
             expect(
-                resetPasswordSchema.safeParse({
-                    userId: 'u1',
-                    email: 'a@b.com',
-                    newPassword: 'longenough',
-                }).success,
+                confirmPasswordResetSchema.safeParse({ token, newPassword: 'longenough' }).success,
             ).toBe(true);
-            expect(resetPasswordSchema.safeParse({ userId: 'u1', email: 'a@b.com' }).success).toBe(
-                false,
-            );
+            expect(
+                confirmPasswordResetSchema.safeParse({ token: 'short', newPassword: 'longenough' })
+                    .success,
+            ).toBe(false);
+            expect(
+                confirmPasswordResetSchema.safeParse({ token, newPassword: 'tiny' }).success,
+            ).toBe(false);
         });
     });
 

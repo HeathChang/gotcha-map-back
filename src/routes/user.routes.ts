@@ -10,7 +10,8 @@ import {
     getUserQuerySchema,
     updateUserSchema,
     changePasswordSchema,
-    resetPasswordSchema,
+    requestPasswordResetSchema,
+    confirmPasswordResetSchema,
 } from '../validators/user.schema';
 
 export const userRouter = Router();
@@ -37,9 +38,20 @@ userRouter.patch(
     userCtrl.changePassword,
 );
 
+// 비밀번호 재설정: 2단계 토큰 흐름 (auth.md)
+//   1) 토큰 발급(이메일로 전달)
+//   2) 토큰 검증 후 비밀번호 변경
+// 기존 v1 `/users/reset-password` 는 보안 결함으로 제거됨.
 userRouter.post(
-    '/users/reset-password',
+    '/users/password-reset/request',
     authLimiter,
-    validate(resetPasswordSchema),
-    userCtrl.resetPassword,
+    validate(requestPasswordResetSchema),
+    userCtrl.requestPasswordReset,
+);
+
+userRouter.post(
+    '/users/password-reset/confirm',
+    authLimiter,
+    validate(confirmPasswordResetSchema),
+    userCtrl.confirmPasswordReset,
 );
