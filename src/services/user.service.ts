@@ -1,5 +1,4 @@
 import { createHash, randomBytes } from 'node:crypto';
-import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { query, withTransaction } from '../config/database';
 import { env } from '../config/env';
@@ -7,6 +6,7 @@ import { UserRow, JwtPayload } from '../types';
 import { hashPassword, comparePassword } from '../utils/password';
 import { logger } from '../utils/logger';
 import { maskEmail } from '../utils/mask';
+import { issueTokensForLogin, IssuedTokens } from './tokens.service';
 import {
     AuthenticationError,
     ConflictError,
@@ -24,12 +24,6 @@ const PUBLIC_USER_COLUMNS =
     'user_id, email, nickname, gender, profile_image_url, user_status, user_flag, created_at, updated_at';
 
 type PublicUserRow = Omit<UserRow, 'password'>;
-
-function signToken(payload: JwtPayload): string {
-    return jwt.sign(payload, env.JWT_SECRET, {
-        expiresIn: env.JWT_EXPIRES_IN as string & jwt.SignOptions['expiresIn'],
-    });
-}
 
 function toUserResponse(row: PublicUserRow) {
     return {
@@ -77,7 +71,18 @@ export async function signup(email: string, password: string, nickname: string, 
     }
 }
 
-export async function login(email: string, password: string) {
+export async function login(
+    email: string,
+    password: string,
+    ctx: { userAgent?: string; ip?: string } = {},
+): Promise<{
+    token: string;
+    accessToken: string;
+    accessExpiresInSec: number;
+    refreshToken: string;
+    refreshExpiresAt: Date;
+    user: ReturnType<typeof toUserResponse>;
+}> {
     const rows = await query<Array<PublicUserRow & { password: string }>>(
         `SELECT ${PUBLIC_USER_COLUMNS}, password FROM users WHERE email = ? AND user_status = 1`,
         [email],
@@ -98,9 +103,20 @@ export async function login(email: string, password: string) {
         );
     }
 
-    const token = signToken({ userId: user.user_id, email: user.email });
+    const tokens: IssuedTokens = await issueTokensForLogin(
+        { userId: user.user_id, email: user.email },
+        ctx,
+    );
     const { password: _pw, ...publicRow } = user;
-    return { token, user: toUserResponse(publicRow) };
+    return {
+        // 하위 호환: 기존 클라이언트는 `token` 필드를 사용한다.
+        token: tokens.accessToken,
+        accessToken: tokens.accessToken,
+        accessExpiresInSec: tokens.accessExpiresInSec,
+        refreshToken: tokens.refreshToken,
+        refreshExpiresAt: tokens.refreshExpiresAt,
+        user: toUserResponse(publicRow),
+    };
 }
 
 export async function getUser(userId: string) {

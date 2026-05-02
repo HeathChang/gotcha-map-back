@@ -3,11 +3,11 @@ import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as defaultCtrl from '../controllers/default.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
-import { validate } from '../middleware/validate.middleware';
+import { defineRoute } from '../openapi/defineRoute';
 import { tagQuerySchema, inquirySchema } from '../validators/default.schema';
 
 export const defaultRouter = Router();
+const BASE = '/api/v1';
 
 const ALLOWED_EXTS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']);
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
@@ -30,22 +30,48 @@ const upload = multer({
     },
 });
 
-defaultRouter.get('/tag/tags', validate(tagQuerySchema, 'query'), defaultCtrl.getTagList);
+defineRoute(defaultRouter, BASE, {
+    method: 'get',
+    path: '/tag/tags',
+    tag: 'Tag',
+    summary: '태그 목록 조회 (RelationType 쿼리 옵션)',
+    query: tagQuerySchema,
+    handler: defaultCtrl.getTagList,
+});
 
-defaultRouter.get('/announces', defaultCtrl.getAnnouncementList);
+defineRoute(defaultRouter, BASE, {
+    method: 'get',
+    path: '/announces',
+    tag: 'Announcement',
+    summary: '활성 공지사항 목록',
+    handler: defaultCtrl.getAnnouncementList,
+});
 
-defaultRouter.post(
-    '/inquiry',
-    authMiddleware,
-    validate(inquirySchema),
-    defaultCtrl.postInquiry,
-);
+defineRoute(defaultRouter, BASE, {
+    method: 'post',
+    path: '/inquiry',
+    tag: 'Inquiry',
+    summary: '문의 등록',
+    auth: true,
+    body: inquirySchema,
+    handler: defaultCtrl.postInquiry,
+});
 
-defaultRouter.get('/inquiry', authMiddleware, defaultCtrl.getInquiryList);
+defineRoute(defaultRouter, BASE, {
+    method: 'get',
+    path: '/inquiry',
+    tag: 'Inquiry',
+    summary: '내 문의 목록',
+    auth: true,
+    handler: defaultCtrl.getInquiryList,
+});
 
-defaultRouter.post(
-    '/images',
-    authMiddleware,
-    upload.single('image'),
-    defaultCtrl.uploadImage,
-);
+defineRoute(defaultRouter, BASE, {
+    method: 'post',
+    path: '/images',
+    tag: 'Upload',
+    summary: '이미지 업로드 (multipart/form-data, field=image, max 5MB)',
+    auth: true,
+    pre: [upload.single('image')],
+    handler: defaultCtrl.uploadImage,
+});

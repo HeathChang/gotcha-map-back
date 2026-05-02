@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as storeCtrl from '../controllers/store.controller';
-import { validate } from '../middleware/validate.middleware';
+import { defineRoute } from '../openapi/defineRoute';
 import {
     nearbyStoresSchema,
     storeByIdQuerySchema,
@@ -8,13 +8,31 @@ import {
 } from '../validators/store.schema';
 
 export const storeRouter = Router();
+const BASE = '/api/v1/store';
 
-storeRouter.get('/', validate(storeByIdQuerySchema, 'query'), storeCtrl.getStore);
+defineRoute(storeRouter, BASE, {
+    method: 'get',
+    path: '/',
+    tag: 'Store',
+    summary: '매장 단건 조회 (storeId 쿼리)',
+    query: storeByIdQuerySchema,
+    handler: storeCtrl.getStore,
+});
 
-storeRouter.post('/nearby', validate(nearbyStoresSchema), storeCtrl.getNearStoreList);
+defineRoute(storeRouter, BASE, {
+    method: 'post',
+    path: '/nearby',
+    tag: 'Store',
+    summary: '주변 매장 조회 (위경도 + 반경 km)',
+    body: nearbyStoresSchema,
+    handler: storeCtrl.getNearStoreList,
+});
 
-storeRouter.get(
-    '/product',
-    validate(storeByProductQuerySchema, 'query'),
-    storeCtrl.getStoreGachaList,
-);
+defineRoute(storeRouter, BASE, {
+    method: 'get',
+    path: '/product',
+    tag: 'Store',
+    summary: '특정 상품을 취급하는 매장 목록',
+    query: storeByProductQuerySchema,
+    handler: storeCtrl.getStoreGachaList,
+});

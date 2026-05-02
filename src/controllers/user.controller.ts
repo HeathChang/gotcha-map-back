@@ -4,6 +4,7 @@ import { AuthRequest } from '../types';
 import { AuthenticationError } from '../utils/errors';
 import { success } from '../utils/response';
 import { asyncHandler } from '../utils/asyncHandler';
+import { setRefreshCookie } from '../utils/cookies';
 import {
     SignupInput,
     LoginInput,
@@ -21,8 +22,14 @@ export const signup = asyncHandler(async (req: Request, res: Response) => {
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
     const { email, password } = req.body as LoginInput;
-    const result = await userService.login(email, password);
-    success(res, result);
+    const result = await userService.login(email, password, {
+        userAgent: req.get('user-agent') ?? undefined,
+        ip: req.ip,
+    });
+    setRefreshCookie(res, result.refreshToken, result.refreshExpiresAt);
+    // 응답 body에서 raw refresh token은 제거(쿠키로만 전달). 하위 호환을 위해 access는 그대로.
+    const { refreshToken: _drop, ...safe } = result;
+    success(res, safe);
 });
 
 export const getUser = asyncHandler(async (req: Request, res: Response) => {

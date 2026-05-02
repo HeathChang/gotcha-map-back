@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import * as userCtrl from '../controllers/user.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
-import { validate } from '../middleware/validate.middleware';
+import { defineRoute } from '../openapi/defineRoute';
 import { env } from '../config/env';
 import {
     signupSchema,
@@ -15,43 +14,83 @@ import {
 } from '../validators/user.schema';
 
 export const userRouter = Router();
+const BASE = '/api/v1';
 
 const authLimiter = rateLimit({
     windowMs: env.RATE_LIMIT_WINDOW_MS,
     max: env.AUTH_RATE_LIMIT_MAX,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { data: null, message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+    message: { code: 'TOO_MANY_REQUESTS', message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
 });
 
-userRouter.post('/signup', authLimiter, validate(signupSchema), userCtrl.signup);
-userRouter.post('/login', authLimiter, validate(loginSchema), userCtrl.login);
+defineRoute(userRouter, BASE, {
+    method: 'post',
+    path: '/signup',
+    tag: 'Auth',
+    summary: '회원가입',
+    pre: [authLimiter],
+    body: signupSchema,
+    handler: userCtrl.signup,
+});
 
-userRouter.get('/users', validate(getUserQuerySchema, 'query'), userCtrl.getUser);
+defineRoute(userRouter, BASE, {
+    method: 'post',
+    path: '/login',
+    tag: 'Auth',
+    summary: '로그인 (Access + Refresh 토큰 발급, httpOnly 쿠키)',
+    pre: [authLimiter],
+    body: loginSchema,
+    handler: userCtrl.login,
+});
 
-userRouter.patch('/users/info', authMiddleware, validate(updateUserSchema), userCtrl.updateUser);
+defineRoute(userRouter, BASE, {
+    method: 'get',
+    path: '/users',
+    tag: 'User',
+    summary: '사용자 단건 조회 (userId 쿼리)',
+    query: getUserQuerySchema,
+    handler: userCtrl.getUser,
+});
 
-userRouter.patch(
-    '/users/password',
-    authMiddleware,
-    validate(changePasswordSchema),
-    userCtrl.changePassword,
-);
+defineRoute(userRouter, BASE, {
+    method: 'patch',
+    path: '/users/info',
+    tag: 'User',
+    summary: '본인 프로필 수정',
+    auth: true,
+    body: updateUserSchema,
+    handler: userCtrl.updateUser,
+});
+
+defineRoute(userRouter, BASE, {
+    method: 'patch',
+    path: '/users/password',
+    tag: 'User',
+    summary: '본인 비밀번호 변경',
+    auth: true,
+    body: changePasswordSchema,
+    handler: userCtrl.changePassword,
+});
 
 // 비밀번호 재설정: 2단계 토큰 흐름 (auth.md)
-//   1) 토큰 발급(이메일로 전달)
-//   2) 토큰 검증 후 비밀번호 변경
-// 기존 v1 `/users/reset-password` 는 보안 결함으로 제거됨.
-userRouter.post(
-    '/users/password-reset/request',
-    authLimiter,
-    validate(requestPasswordResetSchema),
-    userCtrl.requestPasswordReset,
-);
+defineRoute(userRouter, BASE, {
+    method: 'post',
+    path: '/users/password-reset/request',
+    tag: 'Auth',
+    summary: '비밀번호 재설정 토큰 요청 (이메일 발송)',
+    description: '계정 존재 여부는 응답으로 노출하지 않는다.',
+    pre: [authLimiter],
+    body: requestPasswordResetSchema,
+    handler: userCtrl.requestPasswordReset,
+});
 
-userRouter.post(
-    '/users/password-reset/confirm',
-    authLimiter,
-    validate(confirmPasswordResetSchema),
-    userCtrl.confirmPasswordReset,
-);
+defineRoute(userRouter, BASE, {
+    method: 'post',
+    path: '/users/password-reset/confirm',
+    tag: 'Auth',
+    summary: '비밀번호 재설정 토큰 검증 + 비밀번호 변경',
+    pre: [authLimiter],
+    body: confirmPasswordResetSchema,
+    handler: userCtrl.confirmPasswordReset,
+});
