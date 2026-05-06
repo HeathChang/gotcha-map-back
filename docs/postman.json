@@ -335,7 +335,7 @@
           "response": []
         },
         {
-          "name": "DELETE /api/v1/bookmarks/ — 북마크 삭제",
+          "name": "DELETE /api/v1/bookmarks/ — 북마크 삭제 (DELETE 권장)",
           "request": {
             "method": "DELETE",
             "header": [
@@ -355,7 +355,52 @@
                 "bookmarks"
               ]
             },
-            "description": "북마크 삭제",
+            "description": "북마크 삭제 (DELETE 권장)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"store\",\n  \"targetId\": \"sample-id\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/bookmarks/delete — 북마크 삭제 (FE v1 호환 — POST /bookmarks/delete)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookmarks/delete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bookmarks",
+                "delete"
+              ]
+            },
+            "description": "북마크 삭제 (FE v1 호환 — POST /bookmarks/delete)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"type\": \"store\",\n  \"targetId\": \"sample-id\"\n}",
@@ -937,9 +982,9 @@
           "response": []
         },
         {
-          "name": "PATCH /api/v1/users/info — 본인 프로필 수정",
+          "name": "POST /api/v1/users/info — 본인 프로필 수정 (FE v1 호환 — POST)",
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
@@ -958,7 +1003,7 @@
                 "info"
               ]
             },
-            "description": "본인 프로필 수정",
+            "description": "본인 프로필 수정 (FE v1 호환 — POST)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"user@example.com\",\n  \"nickname\": \"heath\",\n  \"gender\": \"M\",\n  \"profileImageUrl\": \"profileImageUrl\"\n}",
@@ -982,7 +1027,97 @@
           "response": []
         },
         {
-          "name": "PATCH /api/v1/users/password — 본인 비밀번호 변경",
+          "name": "PATCH /api/v1/users/info — 본인 프로필 수정 (PATCH 권장)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "info"
+              ]
+            },
+            "description": "본인 프로필 수정 (PATCH 권장)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"nickname\": \"heath\",\n  \"gender\": \"M\",\n  \"profileImageUrl\": \"profileImageUrl\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/users/password — 본인 비밀번호 변경 (FE v1 호환 — POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "password"
+              ]
+            },
+            "description": "본인 비밀번호 변경 (FE v1 호환 — POST)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"P@ssw0rd!\",\n  \"newPassword\": \"P@ssw0rd!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH /api/v1/users/password — 본인 비밀번호 변경 (PATCH 권장)",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1003,7 +1138,7 @@
                 "password"
               ]
             },
-            "description": "본인 비밀번호 변경",
+            "description": "본인 비밀번호 변경 (PATCH 권장)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"oldPassword\": \"P@ssw0rd!\",\n  \"newPassword\": \"P@ssw0rd!\"\n}",

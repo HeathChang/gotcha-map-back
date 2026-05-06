@@ -54,9 +54,11 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
     });
 
     setRefreshCookie(res, tokens.refreshToken, tokens.refreshExpiresAt);
+    // login과 동일한 정책: web 은 쿠키 사용, native 는 body의 refreshToken을 secure storage 에 저장.
     success(res, {
         accessToken: tokens.accessToken,
         accessExpiresInSec: tokens.accessExpiresInSec,
+        refreshToken: tokens.refreshToken,
         refreshExpiresAt: tokens.refreshExpiresAt,
     });
 });

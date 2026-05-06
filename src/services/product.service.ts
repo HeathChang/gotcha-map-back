@@ -87,6 +87,7 @@ function resolveOrderBy(sortBy?: string): string {
             return 'ORDER BY p.min_price ASC';
         case 'price_desc':
             return 'ORDER BY p.max_price DESC';
+        case 'new':
         default:
             return 'ORDER BY p.created_at DESC';
     }

@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Request, Response, Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import * as userCtrl from '../controllers/user.controller';
 import { defineRoute } from '../openapi/defineRoute';
@@ -57,7 +57,18 @@ defineRoute(userRouter, BASE, {
     method: 'patch',
     path: '/users/info',
     tag: 'User',
-    summary: '본인 프로필 수정',
+    summary: '본인 프로필 수정 (PATCH 권장)',
+    auth: true,
+    body: updateUserSchema,
+    handler: userCtrl.updateUser,
+});
+
+// FE v1 호환: 같은 경로 POST 도 수용. v2에서 PATCH 만 유지 예정.
+defineRoute(userRouter, BASE, {
+    method: 'post',
+    path: '/users/info',
+    tag: 'User',
+    summary: '본인 프로필 수정 (FE v1 호환 — POST)',
     auth: true,
     body: updateUserSchema,
     handler: userCtrl.updateUser,
@@ -67,7 +78,18 @@ defineRoute(userRouter, BASE, {
     method: 'patch',
     path: '/users/password',
     tag: 'User',
-    summary: '본인 비밀번호 변경',
+    summary: '본인 비밀번호 변경 (PATCH 권장)',
+    auth: true,
+    body: changePasswordSchema,
+    handler: userCtrl.changePassword,
+});
+
+// FE v1 호환: 같은 경로 POST 도 수용. v2에서 PATCH 만 유지 예정.
+defineRoute(userRouter, BASE, {
+    method: 'post',
+    path: '/users/password',
+    tag: 'User',
+    summary: '본인 비밀번호 변경 (FE v1 호환 — POST)',
     auth: true,
     body: changePasswordSchema,
     handler: userCtrl.changePassword,
@@ -93,4 +115,23 @@ defineRoute(userRouter, BASE, {
     pre: [authLimiter],
     body: confirmPasswordResetSchema,
     handler: userCtrl.confirmPasswordReset,
+});
+
+// 구 비밀번호 재설정 엔드포인트는 보안 결함(userId+email만으로 변경 가능)으로 제거됨.
+// FE 호환을 위해 410 Gone + 마이그레이션 안내를 응답한다.
+userRouter.post('/users/reset-password', (_req: Request, res: Response) => {
+    res.status(410).json({
+        code: 'ENDPOINT_GONE',
+        message:
+            '이 엔드포인트는 보안상 제거되었습니다. /users/password-reset/request 와 /users/password-reset/confirm 을 사용하세요.',
+        details: [
+            { step: 1, method: 'POST', path: '/api/v1/users/password-reset/request', body: { email: 'string' } },
+            {
+                step: 2,
+                method: 'POST',
+                path: '/api/v1/users/password-reset/confirm',
+                body: { token: 'string', newPassword: 'string' },
+            },
+        ],
+    });
 });

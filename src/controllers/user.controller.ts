@@ -26,10 +26,12 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
         userAgent: req.get('user-agent') ?? undefined,
         ip: req.ip,
     });
+    // 클라이언트별 권장 저장소:
+    //   - Web (BFF/같은 도메인): httpOnly 쿠키 사용 (자동). body의 refreshToken 무시.
+    //   - Native (React Native 등): 쿠키 영속화가 까다로워 body의 refreshToken을 secure storage에 저장.
+    // Refresh Rotation + 재사용 감지가 1차 방어선이며, 둘 다 같은 보안 모델로 동작한다.
     setRefreshCookie(res, result.refreshToken, result.refreshExpiresAt);
-    // 응답 body에서 raw refresh token은 제거(쿠키로만 전달). 하위 호환을 위해 access는 그대로.
-    const { refreshToken: _drop, ...safe } = result;
-    success(res, safe);
+    success(res, result);
 });
 
 export const getUser = asyncHandler(async (req: Request, res: Response) => {

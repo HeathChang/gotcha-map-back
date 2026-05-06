@@ -20,7 +20,18 @@ defineRoute(bookmarkRouter, BASE, {
     method: 'delete',
     path: '/',
     tag: 'Bookmark',
-    summary: '북마크 삭제',
+    summary: '북마크 삭제 (DELETE 권장)',
+    auth: true,
+    body: bookmarkBodySchema,
+    handler: bookmarkCtrl.deleteBookmark,
+});
+
+// FE v1 호환: 일부 모바일 클라이언트는 DELETE+body 처리에 제약이 있어 POST 별칭을 제공.
+defineRoute(bookmarkRouter, BASE, {
+    method: 'post',
+    path: '/delete',
+    tag: 'Bookmark',
+    summary: '북마크 삭제 (FE v1 호환 — POST /bookmarks/delete)',
     auth: true,
     body: bookmarkBodySchema,
     handler: bookmarkCtrl.deleteBookmark,
