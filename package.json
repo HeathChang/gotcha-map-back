@@ -8,6 +8,8 @@
     "build": "npm run postman:generate && tsc",
     "start": "node dist/server.js",
     "db:migrate": "ts-node src/scripts/migrate.ts",
+    "db:seed": "ts-node src/scripts/seed.ts",
+    "db:seed:admin": "ts-node src/scripts/seedAdmin.ts",
     "postman:generate": "ts-node src/scripts/generatePostman.ts",
     "test": "jest",
     "test:watch": "jest --watch",

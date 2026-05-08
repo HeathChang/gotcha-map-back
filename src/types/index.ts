@@ -21,14 +21,28 @@ export interface PaginationResult {
 }
 
 // JWT 토큰 페이로드
+//   kind 미지정 또는 'user' = 일반 사용자 토큰 (기존 호환).
+//   'admin' = 어드민 토큰. role 필수. adminAuth 미들웨어가 kind 일치를 강제한다.
+export type AdminRole = 'super_admin' | 'content_manager' | 'support_staff';
+
 export interface JwtPayload {
     userId: string;
     email: string;
+    kind?: 'user' | 'admin';
+    role?: AdminRole;
 }
 
 // 인증된 요청
 export interface AuthRequest extends Request {
     user?: JwtPayload;
+}
+
+// 어드민 인증된 요청 — adminAuth 미들웨어 통과 후에는 role/kind 가 보장된다.
+export interface AdminAuthRequest extends Request {
+    user: Required<Pick<JwtPayload, 'userId' | 'email'>> & {
+        kind: 'admin';
+        role: AdminRole;
+    };
 }
 
 // ================================================================
@@ -138,5 +152,31 @@ export interface TagRow {
     tag_id: string;
     name: string;
     relation_type: string | null;
+    created_at: Date;
+}
+
+// ================================================================
+// Admin (백오피스)
+// ================================================================
+export interface AdminUserRow {
+    admin_id: string;
+    email: string;
+    password: string;
+    name: string;
+    role: AdminRole;
+    admin_status: number;
+    created_at: Date;
+    updated_at: Date;
+}
+
+export interface AdminAuditLogRow {
+    audit_id: string;
+    admin_id: string;
+    action: string;
+    target_type: string;
+    target_id: string;
+    diff: unknown;
+    ip: string | null;
+    user_agent: string | null;
     created_at: Date;
 }

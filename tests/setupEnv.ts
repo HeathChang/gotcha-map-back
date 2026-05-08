@@ -1,5 +1,5 @@
 process.env.NODE_ENV = 'test';
-process.env.PORT = '8080';
+process.env.PORT = '8060';
 process.env.DB_HOST = 'localhost';
 process.env.DB_PORT = '3306';
 process.env.DB_USER = 'test';

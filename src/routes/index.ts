@@ -5,6 +5,7 @@ import { storeRouter } from './store.routes';
 import { bookmarkRouter } from './bookmark.routes';
 import { defaultRouter } from './default.routes';
 import { authRouter } from './auth.routes';
+import { adminRouter } from './admin.routes';
 
 export const router = Router();
 
@@ -16,6 +17,9 @@ export const router = Router();
 
 // POST /api/v1/auth/refresh, POST /api/v1/auth/logout
 router.use('/auth', authRouter);
+
+// POST /api/v1/admin/login, GET /api/v1/admin/me, GET/PATCH /api/v1/admin/inquiries/...
+router.use('/admin', adminRouter);
 
 // POST /api/v1/signup, POST /api/v1/login, GET /api/v1/users, ...
 router.use('/', userRouter);

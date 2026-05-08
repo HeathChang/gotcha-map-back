@@ -161,7 +161,7 @@ export function buildPostmanCollection(
             bearer: [{ key: 'token', value: '{{accessToken}}', type: 'string' }],
         },
         variable: [
-            { key: 'baseUrl', value: options.baseUrl ?? 'http://localhost:8080' },
+            { key: 'baseUrl', value: options.baseUrl ?? 'http://localhost:8060' },
             { key: 'accessToken', value: '' },
         ],
     };

@@ -33,7 +33,7 @@ const routes: RouteDefinition[] = [
 ];
 
 describe('buildPostmanCollection', () => {
-    const collection = buildPostmanCollection(routes, { baseUrl: 'http://localhost:8080' });
+    const collection = buildPostmanCollection(routes, { baseUrl: 'http://localhost:8060' });
 
     it('태그별로 폴더가 생긴다', () => {
         const folderNames = collection.item.map((f) => f.name);
@@ -70,7 +70,7 @@ describe('buildPostmanCollection', () => {
     it('baseUrl 변수가 컬렉션 변수로 포함된다', () => {
         expect(collection.variable).toEqual(
             expect.arrayContaining([
-                expect.objectContaining({ key: 'baseUrl', value: 'http://localhost:8080' }),
+                expect.objectContaining({ key: 'baseUrl', value: 'http://localhost:8060' }),
                 expect.objectContaining({ key: 'accessToken' }),
             ]),
         );
