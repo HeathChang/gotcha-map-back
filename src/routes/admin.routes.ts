@@ -64,11 +64,21 @@ defineRoute(adminRouter, BASE, {
     method: 'get',
     path: '/inquiries',
     tag: 'Admin',
-    summary: '문의 목록 조회 (페이지네이션, 상태 필터)',
+    summary: '문의 목록 조회 (페이지네이션, 상태/검색 필터)',
     adminAuth: true,
     adminRoles: ['super_admin', 'support_staff'],
     query: adminInquiryListQuerySchema,
     handler: adminInquiryCtrl.list,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'get',
+    path: '/inquiries/stats',
+    tag: 'Admin',
+    summary: '문의 SLA 통계 (상태별 건수 / 평균·중앙값 응답시간 / 24h 초과 미답변)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'support_staff'],
+    handler: adminInquiryCtrl.stats,
 });
 
 defineRoute(adminRouter, BASE, {

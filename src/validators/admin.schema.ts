@@ -8,6 +8,8 @@ export type AdminLoginInput = z.infer<typeof adminLoginSchema>;
 
 export const adminInquiryListQuerySchema = z.object({
     status: z.enum(['pending', 'processing', 'completed', 'rejected']).optional(),
+    // 운영자가 제목/요청자 이메일에서 키워드를 찾을 수 있게 한다. 부분 일치(LIKE) 검색.
+    q: z.string().trim().min(1).max(100).optional(),
     page: z.coerce.number().int().positive().default(1),
     limit: z.coerce.number().int().positive().max(100).default(20),
 });
