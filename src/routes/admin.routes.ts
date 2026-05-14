@@ -2,12 +2,16 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import * as adminCtrl from '../controllers/admin.controller';
 import * as adminInquiryCtrl from '../controllers/adminInquiry.controller';
+import * as adminStoreCtrl from '../controllers/adminStore.controller';
 import { defineRoute } from '../openapi/defineRoute';
 import { env } from '../config/env';
 import {
     adminAnswerInquirySchema,
+    adminCreateStoreSchema,
     adminInquiryListQuerySchema,
     adminLoginSchema,
+    adminStoreListQuerySchema,
+    adminUpdateStoreSchema,
 } from '../validators/admin.schema';
 
 export const adminRouter = Router();
@@ -91,4 +95,53 @@ defineRoute(adminRouter, BASE, {
     pathParams: [{ name: 'inquiryId', description: '문의 ID' }],
     body: adminAnswerInquirySchema,
     handler: adminInquiryCtrl.answer,
+});
+
+// ----------------------------------------------------------------
+// Admin Stores (매장 관리)
+// ----------------------------------------------------------------
+
+defineRoute(adminRouter, BASE, {
+    method: 'get',
+    path: '/stores',
+    tag: 'Admin',
+    summary: '매장 목록 조회 (페이지네이션, 이름/주소 검색)',
+    adminAuth: true,
+    adminRoles: ['super_admin'],
+    query: adminStoreListQuerySchema,
+    handler: adminStoreCtrl.list,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'post',
+    path: '/stores',
+    tag: 'Admin',
+    summary: '매장 생성',
+    adminAuth: true,
+    adminRoles: ['super_admin'],
+    body: adminCreateStoreSchema,
+    handler: adminStoreCtrl.create,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'patch',
+    path: '/stores/:storeId',
+    tag: 'Admin',
+    summary: '매장 수정 (부분 업데이트)',
+    adminAuth: true,
+    adminRoles: ['super_admin'],
+    pathParams: [{ name: 'storeId', description: '매장 ID' }],
+    body: adminUpdateStoreSchema,
+    handler: adminStoreCtrl.update,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'delete',
+    path: '/stores/:storeId',
+    tag: 'Admin',
+    summary: '매장 삭제',
+    adminAuth: true,
+    adminRoles: ['super_admin'],
+    pathParams: [{ name: 'storeId', description: '매장 ID' }],
+    handler: adminStoreCtrl.remove,
 });
