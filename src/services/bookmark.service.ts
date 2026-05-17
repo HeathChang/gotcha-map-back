@@ -11,6 +11,8 @@ export type StoreBookmarkResponse = {
         address: string;
         imageUrl: string | null;
         rating: number;
+        lat: number;
+        lon: number;
     };
 };
 
@@ -45,7 +47,7 @@ export async function deleteBookmark(userId: string, targetId: string, type: Boo
 export async function getStoreBookmarks(userId: string): Promise<StoreBookmarkResponse[]> {
     const sql = `
         SELECT b.bookmark_id, b.target_id, b.created_at,
-               s.name, s.address, s.image_url, s.rating
+               s.name, s.address, s.image_url, s.rating, s.lat, s.lon
         FROM bookmarks b
         JOIN stores s ON b.target_id = s.store_id
         WHERE b.user_id = ? AND b.type = 'store'
@@ -60,6 +62,8 @@ export async function getStoreBookmarks(userId: string): Promise<StoreBookmarkRe
             address: string;
             image_url: string | null;
             rating: number;
+            lat: number;
+            lon: number;
         }>
     >(sql, [userId]);
 
@@ -73,6 +77,8 @@ export async function getStoreBookmarks(userId: string): Promise<StoreBookmarkRe
             address: row.address,
             imageUrl: row.image_url,
             rating: row.rating,
+            lat: row.lat,
+            lon: row.lon,
         },
     }));
 }
