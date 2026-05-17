@@ -60,6 +60,17 @@ defineRoute(adminRouter, BASE, {
     handler: adminCtrl.me,
 });
 
+defineRoute(adminRouter, BASE, {
+    method: 'post',
+    path: '/refresh',
+    tag: 'Admin',
+    summary: '어드민 refresh 토큰 회전 (httpOnly 쿠키 또는 body, 1회용 + family rotation)',
+    description:
+        'Refresh 토큰은 1회용. 정상 회전 시 새 access + refresh 발급. 재사용 감지 시 family 전체 무효화.',
+    pre: [adminAuthLimiter],
+    handler: adminCtrl.refresh,
+});
+
 // ----------------------------------------------------------------
 // Admin Inquiries
 // ----------------------------------------------------------------
