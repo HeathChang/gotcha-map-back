@@ -3,15 +3,25 @@ import rateLimit from 'express-rate-limit';
 import * as adminCtrl from '../controllers/admin.controller';
 import * as adminInquiryCtrl from '../controllers/adminInquiry.controller';
 import * as adminStoreCtrl from '../controllers/adminStore.controller';
+import * as adminTagCtrl from '../controllers/adminTag.controller';
+import * as adminAnnouncementCtrl from '../controllers/adminAnnouncement.controller';
+import * as adminAuditLogCtrl from '../controllers/adminAuditLog.controller';
 import { defineRoute } from '../openapi/defineRoute';
 import { env } from '../config/env';
 import {
+    adminAnnouncementListQuerySchema,
     adminAnswerInquirySchema,
+    adminAuditLogListQuerySchema,
+    adminCreateAnnouncementSchema,
     adminCreateStoreSchema,
+    adminCreateTagSchema,
     adminInquiryListQuerySchema,
     adminLoginSchema,
     adminStoreListQuerySchema,
+    adminTagListQuerySchema,
+    adminUpdateAnnouncementSchema,
     adminUpdateStoreSchema,
+    adminUpdateTagSchema,
 } from '../validators/admin.schema';
 
 export const adminRouter = Router();
@@ -155,4 +165,117 @@ defineRoute(adminRouter, BASE, {
     adminRoles: ['super_admin'],
     pathParams: [{ name: 'storeId', description: '매장 ID' }],
     handler: adminStoreCtrl.remove,
+});
+
+// ----------------------------------------------------------------
+// Admin Tags (태그 관리)
+// ----------------------------------------------------------------
+
+defineRoute(adminRouter, BASE, {
+    method: 'get',
+    path: '/tags',
+    tag: 'Admin',
+    summary: '태그 목록 조회 (페이지네이션, 이름 검색 / relationType 필터)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    query: adminTagListQuerySchema,
+    handler: adminTagCtrl.list,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'post',
+    path: '/tags',
+    tag: 'Admin',
+    summary: '태그 생성 (감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    body: adminCreateTagSchema,
+    handler: adminTagCtrl.create,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'patch',
+    path: '/tags/:tagId',
+    tag: 'Admin',
+    summary: '태그 수정 (부분 업데이트, 감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    pathParams: [{ name: 'tagId', description: '태그 ID' }],
+    body: adminUpdateTagSchema,
+    handler: adminTagCtrl.update,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'delete',
+    path: '/tags/:tagId',
+    tag: 'Admin',
+    summary: '태그 삭제 (감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    pathParams: [{ name: 'tagId', description: '태그 ID' }],
+    handler: adminTagCtrl.remove,
+});
+
+// ----------------------------------------------------------------
+// Admin Announcements (공지 관리)
+// ----------------------------------------------------------------
+
+defineRoute(adminRouter, BASE, {
+    method: 'get',
+    path: '/announcements',
+    tag: 'Admin',
+    summary: '공지 목록 조회 (페이지네이션, 제목 검색 / isActive 필터)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    query: adminAnnouncementListQuerySchema,
+    handler: adminAnnouncementCtrl.list,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'post',
+    path: '/announcements',
+    tag: 'Admin',
+    summary: '공지 생성 (감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    body: adminCreateAnnouncementSchema,
+    handler: adminAnnouncementCtrl.create,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'patch',
+    path: '/announcements/:announceId',
+    tag: 'Admin',
+    summary: '공지 수정 (부분 업데이트 / isActive 토글, 감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    pathParams: [{ name: 'announceId', description: '공지 ID' }],
+    body: adminUpdateAnnouncementSchema,
+    handler: adminAnnouncementCtrl.update,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'delete',
+    path: '/announcements/:announceId',
+    tag: 'Admin',
+    summary: '공지 삭제 (감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    pathParams: [{ name: 'announceId', description: '공지 ID' }],
+    handler: adminAnnouncementCtrl.remove,
+});
+
+// ----------------------------------------------------------------
+// Admin Audit Logs (감사 로그 — 읽기 전용, super_admin 전용)
+// ----------------------------------------------------------------
+
+defineRoute(adminRouter, BASE, {
+    method: 'get',
+    path: '/audit-logs',
+    tag: 'Admin',
+    summary: '감사 로그 목록 조회 (페이지네이션, targetType/action 필터)',
+    adminAuth: true,
+    adminRoles: ['super_admin'],
+    query: adminAuditLogListQuerySchema,
+    handler: adminAuditLogCtrl.list,
 });

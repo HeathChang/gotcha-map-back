@@ -49,3 +49,58 @@ export const adminUpdateStoreSchema = adminCreateStoreSchema.partial().refine(
     { message: 'lat 과 lon 은 함께 보내야 합니다.' },
 );
 export type AdminUpdateStoreInput = z.infer<typeof adminUpdateStoreSchema>;
+
+// 어드민 태그 관리 —————————————————————————————————————————————
+
+export const adminTagListQuerySchema = z.object({
+    q: z.string().trim().min(1).max(100).optional(),
+    // relationType 분류로 좁혀 보기. tags.relation_type 부분이 아니라 정확 일치.
+    relationType: z.string().trim().min(1).max(50).optional(),
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(20),
+});
+export type AdminTagListQuery = z.infer<typeof adminTagListQuerySchema>;
+
+export const adminCreateTagSchema = z.object({
+    name: z.string().trim().min(1, '태그명을 입력해주세요.').max(100),
+    relationType: z.string().trim().max(50).optional().nullable(),
+});
+export type AdminCreateTagInput = z.infer<typeof adminCreateTagSchema>;
+
+export const adminUpdateTagSchema = adminCreateTagSchema.partial();
+export type AdminUpdateTagInput = z.infer<typeof adminUpdateTagSchema>;
+
+// 어드민 공지 관리 —————————————————————————————————————————————
+
+export const adminAnnouncementListQuerySchema = z.object({
+    q: z.string().trim().min(1).max(100).optional(),
+    // 쿼리스트링은 문자열이라 'true'/'false' 로 받아 boolean 으로 변환한다.
+    isActive: z
+        .enum(['true', 'false'])
+        .optional()
+        .transform((v) => (v === undefined ? undefined : v === 'true')),
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(20),
+});
+export type AdminAnnouncementListQuery = z.infer<typeof adminAnnouncementListQuerySchema>;
+
+export const adminCreateAnnouncementSchema = z.object({
+    title: z.string().trim().min(1, '제목을 입력해주세요.').max(255),
+    content: z.string().trim().min(1, '내용을 입력해주세요.').max(10000),
+    isActive: z.boolean().optional().default(true),
+});
+export type AdminCreateAnnouncementInput = z.infer<typeof adminCreateAnnouncementSchema>;
+
+export const adminUpdateAnnouncementSchema = adminCreateAnnouncementSchema.partial();
+export type AdminUpdateAnnouncementInput = z.infer<typeof adminUpdateAnnouncementSchema>;
+
+// 어드민 감사 로그 (읽기 전용, super_admin) ——————————————————————————
+
+export const adminAuditLogListQuerySchema = z.object({
+    // 정확 일치 필터. target_type 예: tag / announcement / store / inquiry.
+    targetType: z.string().trim().min(1).max(32).optional(),
+    action: z.string().trim().min(1).max(64).optional(),
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(20),
+});
+export type AdminAuditLogListQuery = z.infer<typeof adminAuditLogListQuerySchema>;
