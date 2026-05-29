@@ -1,6 +1,8 @@
 import { query } from '../config/database';
 import { StoreRow } from '../types';
 import { NotFoundError } from '../utils/errors';
+import { writeAuditLog } from './admin.service';
+import type { AuditActor } from './adminTag.service';
 
 const STORE_COLUMNS = `
     store_id, name, address, lat, lon, phone, description,
@@ -128,7 +130,7 @@ export async function listStoresForAdmin(params: { q?: string; page: number; lim
     };
 }
 
-export async function createStore(params: CreateStoreParams) {
+export async function createStore(params: CreateStoreParams, actor: AuditActor) {
     // store_id 를 직접 만들어 두면 INSERT 후 같은 ID 로 SELECT 가능 (UUID() 컬럼 기본값 우회).
     const idRows = await query<Array<{ id: string }>>('SELECT UUID() AS id', []);
     const storeId = idRows[0]?.id;
@@ -152,10 +154,28 @@ export async function createStore(params: CreateStoreParams) {
             params.rating ?? 0,
         ],
     );
-    return getStore(storeId);
+    const created = await getStore(storeId);
+
+    await writeAuditLog({
+        adminId: actor.adminId,
+        action: 'store.create',
+        targetType: 'store',
+        targetId: storeId,
+        diff: { after: created },
+        ip: actor.ip,
+        userAgent: actor.userAgent,
+    });
+    return created;
 }
 
-export async function updateStore(storeId: string, params: UpdateStoreParams) {
+export async function updateStore(
+    storeId: string,
+    params: UpdateStoreParams,
+    actor: AuditActor,
+) {
+    // before 를 먼저 확보. 존재 여부도 동시에 확인되어 UPDATE 가 무손실로 진행된다.
+    const before = await getStore(storeId);
+
     const fields: string[] = [];
     const args: Array<string | number | null> = [];
 
@@ -177,8 +197,9 @@ export async function updateStore(storeId: string, params: UpdateStoreParams) {
             args.push(value as string | number | null);
         }
     }
+    // 변경할 필드가 없으면 no-op. tag/announcement 와 동일하게 감사 로그도 남기지 않는다.
     if (fields.length === 0) {
-        return getStore(storeId);
+        return before;
     }
 
     args.push(storeId);
@@ -189,10 +210,24 @@ export async function updateStore(storeId: string, params: UpdateStoreParams) {
     if (Number(result.affectedRows) === 0) {
         throw new NotFoundError('매장을 찾을 수 없습니다.', 'STORE_NOT_FOUND');
     }
-    return getStore(storeId);
+    const updated = await getStore(storeId);
+
+    await writeAuditLog({
+        adminId: actor.adminId,
+        action: 'store.update',
+        targetType: 'store',
+        targetId: storeId,
+        diff: { before, after: updated },
+        ip: actor.ip,
+        userAgent: actor.userAgent,
+    });
+    return updated;
 }
 
-export async function deleteStore(storeId: string) {
+export async function deleteStore(storeId: string, actor: AuditActor) {
+    // before 스냅샷을 먼저 확보해 감사 로그에 삭제 직전 상태를 남긴다.
+    const before = await getStore(storeId);
+
     const result = (await query(
         `DELETE FROM stores WHERE store_id = ?`,
         [storeId],
@@ -200,6 +235,16 @@ export async function deleteStore(storeId: string) {
     if (Number(result.affectedRows) === 0) {
         throw new NotFoundError('매장을 찾을 수 없습니다.', 'STORE_NOT_FOUND');
     }
+
+    await writeAuditLog({
+        adminId: actor.adminId,
+        action: 'store.delete',
+        targetType: 'store',
+        targetId: storeId,
+        diff: { before },
+        ip: actor.ip,
+        userAgent: actor.userAgent,
+    });
 }
 
 export async function getStoreGachaList(productId: string) {
