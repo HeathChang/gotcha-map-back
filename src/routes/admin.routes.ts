@@ -6,6 +6,8 @@ import * as adminStoreCtrl from '../controllers/adminStore.controller';
 import * as adminTagCtrl from '../controllers/adminTag.controller';
 import * as adminAnnouncementCtrl from '../controllers/adminAnnouncement.controller';
 import * as adminAuditLogCtrl from '../controllers/adminAuditLog.controller';
+import * as adminUserCtrl from '../controllers/adminUser.controller';
+import * as adminProductCtrl from '../controllers/adminProduct.controller';
 import { defineRoute } from '../openapi/defineRoute';
 import { env } from '../config/env';
 import {
@@ -13,15 +15,20 @@ import {
     adminAnswerInquirySchema,
     adminAuditLogListQuerySchema,
     adminCreateAnnouncementSchema,
+    adminCreateProductSchema,
     adminCreateStoreSchema,
     adminCreateTagSchema,
     adminInquiryListQuerySchema,
     adminLoginSchema,
+    adminProductListQuerySchema,
     adminStoreListQuerySchema,
     adminTagListQuerySchema,
     adminUpdateAnnouncementSchema,
+    adminUpdateProductSchema,
     adminUpdateStoreSchema,
     adminUpdateTagSchema,
+    adminUpdateUserStatusSchema,
+    adminUserListQuerySchema,
 } from '../validators/admin.schema';
 
 export const adminRouter = Router();
@@ -263,6 +270,94 @@ defineRoute(adminRouter, BASE, {
     adminRoles: ['super_admin', 'content_manager'],
     pathParams: [{ name: 'announceId', description: '공지 ID' }],
     handler: adminAnnouncementCtrl.remove,
+});
+
+// ----------------------------------------------------------------
+// Admin Products (제품 관리)
+// ----------------------------------------------------------------
+
+defineRoute(adminRouter, BASE, {
+    method: 'get',
+    path: '/products',
+    tag: 'Admin',
+    summary: '제품 목록 조회 (이름 검색, category·isNew·isPopular·genderTarget 필터, 페이지네이션)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    query: adminProductListQuerySchema,
+    handler: adminProductCtrl.list,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'get',
+    path: '/products/:productId',
+    tag: 'Admin',
+    summary: '제품 상세 조회 (갤러리 이미지 + 연결 태그 포함)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    pathParams: [{ name: 'productId', description: '제품 ID' }],
+    handler: adminProductCtrl.detail,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'post',
+    path: '/products',
+    tag: 'Admin',
+    summary: '제품 생성 (이미지·태그 동시 등록, 감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    body: adminCreateProductSchema,
+    handler: adminProductCtrl.create,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'patch',
+    path: '/products/:productId',
+    tag: 'Admin',
+    summary: '제품 수정 (부분 업데이트, images/tagIds 명시 시 전체 교체, 감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    pathParams: [{ name: 'productId', description: '제품 ID' }],
+    body: adminUpdateProductSchema,
+    handler: adminProductCtrl.update,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'delete',
+    path: '/products/:productId',
+    tag: 'Admin',
+    summary: '제품 삭제 (CASCADE: product_images / product_tags / store_products)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    pathParams: [{ name: 'productId', description: '제품 ID' }],
+    handler: adminProductCtrl.remove,
+});
+
+// ----------------------------------------------------------------
+// Admin Users (회원 관리)
+// ----------------------------------------------------------------
+
+defineRoute(adminRouter, BASE, {
+    method: 'get',
+    path: '/users',
+    tag: 'Admin',
+    summary:
+        '회원 목록 조회 (이메일/닉네임 검색, status 필터, 페이지네이션). support_staff 토큰은 이메일 마스킹.',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'support_staff'],
+    query: adminUserListQuerySchema,
+    handler: adminUserCtrl.list,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'patch',
+    path: '/users/:userId/status',
+    tag: 'Admin',
+    summary: '회원 상태 변경 (1=활성, 0=비활성, -1=탈퇴, 감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'support_staff'],
+    pathParams: [{ name: 'userId', description: '회원 ID' }],
+    body: adminUpdateUserStatusSchema,
+    handler: adminUserCtrl.updateStatus,
 });
 
 // ----------------------------------------------------------------

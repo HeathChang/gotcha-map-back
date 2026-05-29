@@ -94,6 +94,96 @@ export type AdminCreateAnnouncementInput = z.infer<typeof adminCreateAnnouncemen
 export const adminUpdateAnnouncementSchema = adminCreateAnnouncementSchema.partial();
 export type AdminUpdateAnnouncementInput = z.infer<typeof adminUpdateAnnouncementSchema>;
 
+// 어드민 제품 관리 ———————————————————————————————————————————————
+
+const GENDER_TARGETS = ['M', 'F', 'ALL'] as const;
+
+export const adminProductListQuerySchema = z.object({
+    q: z.string().trim().min(1).max(100).optional(),
+    category: z.string().trim().min(1).max(100).optional(),
+    isNew: z
+        .enum(['true', 'false'])
+        .optional()
+        .transform((v) => (v === undefined ? undefined : v === 'true')),
+    isPopular: z
+        .enum(['true', 'false'])
+        .optional()
+        .transform((v) => (v === undefined ? undefined : v === 'true')),
+    genderTarget: z.enum(GENDER_TARGETS).optional(),
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(20),
+});
+export type AdminProductListQuery = z.infer<typeof adminProductListQuerySchema>;
+
+// 메인 product 필드 — image_url 은 메인 썸네일, images[] 는 product_images 추가 갤러리.
+const productBaseSchema = z.object({
+    productName: z.string().trim().min(1, '제품명을 입력해주세요.').max(255),
+    productManufacturer: z.string().trim().max(255).optional().nullable(),
+    productInfo: z.string().trim().max(10000).optional().nullable(),
+    category: z.string().trim().max(100).optional().nullable(),
+    minPrice: z.coerce.number().int().nonnegative(),
+    maxPrice: z.coerce.number().int().nonnegative(),
+    imageUrl: z
+        .string()
+        .trim()
+        .url('유효한 이미지 URL이 아닙니다.')
+        .max(512)
+        .optional()
+        .nullable(),
+    isNew: z.boolean().optional(),
+    isPopular: z.boolean().optional(),
+    genderTarget: z.enum(GENDER_TARGETS).optional(),
+    // 갤러리 이미지 URL — 명시되면 product_images 전체 교체.
+    images: z
+        .array(z.string().trim().url('유효한 이미지 URL이 아닙니다.').max(512))
+        .max(20)
+        .optional(),
+    // 태그 ID 목록 — 명시되면 product_tags 전체 교체.
+    tagIds: z.array(z.string().trim().min(1).max(36)).max(50).optional(),
+});
+
+// create 는 minPrice/maxPrice 필수. 가격 역전 금지.
+export const adminCreateProductSchema = productBaseSchema.refine(
+    (d) => d.maxPrice >= d.minPrice,
+    { message: 'maxPrice 는 minPrice 이상이어야 합니다.', path: ['maxPrice'] },
+);
+export type AdminCreateProductInput = z.infer<typeof adminCreateProductSchema>;
+
+// PATCH 라 모든 필드 optional. 둘 다 보낼 때만 가격 역전 검사.
+export const adminUpdateProductSchema = productBaseSchema.partial().refine(
+    (d) =>
+        d.minPrice === undefined ||
+        d.maxPrice === undefined ||
+        d.maxPrice >= d.minPrice,
+    { message: 'maxPrice 는 minPrice 이상이어야 합니다.', path: ['maxPrice'] },
+);
+export type AdminUpdateProductInput = z.infer<typeof adminUpdateProductSchema>;
+
+// 어드민 회원 관리 ———————————————————————————————————————————————
+
+// users.user_status: 1=활성, 0=비활성, -1=탈퇴 (스키마 0001).
+const ADMIN_USER_STATUSES = [1, 0, -1] as const;
+type AdminUserStatus = (typeof ADMIN_USER_STATUSES)[number];
+
+export const adminUserListQuerySchema = z.object({
+    q: z.string().trim().min(1).max(100).optional(),
+    status: z
+        .coerce.number()
+        .int()
+        .refine((v): v is AdminUserStatus => (ADMIN_USER_STATUSES as ReadonlyArray<number>).includes(v), {
+            message: 'status 는 1(활성), 0(비활성), -1(탈퇴) 중 하나여야 합니다.',
+        })
+        .optional(),
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(20),
+});
+export type AdminUserListQuery = z.infer<typeof adminUserListQuerySchema>;
+
+export const adminUpdateUserStatusSchema = z.object({
+    status: z.union([z.literal(1), z.literal(0), z.literal(-1)]),
+});
+export type AdminUpdateUserStatusInput = z.infer<typeof adminUpdateUserStatusSchema>;
+
 // 어드민 감사 로그 (읽기 전용, super_admin) ——————————————————————————
 
 export const adminAuditLogListQuerySchema = z.object({

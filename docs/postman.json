@@ -485,6 +485,243 @@
           "response": []
         },
         {
+          "name": "GET /api/v1/admin/products — 제품 목록 조회 (이름 검색, category·isNew·isPopular·genderTarget 필터, 페이지네이션)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "q"
+                },
+                {
+                  "key": "category",
+                  "value": "category"
+                },
+                {
+                  "key": "isNew",
+                  "value": "true"
+                },
+                {
+                  "key": "isPopular",
+                  "value": "true"
+                },
+                {
+                  "key": "genderTarget",
+                  "value": "M"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "제품 목록 조회 (이름 검색, category·isNew·isPopular·genderTarget 필터, 페이지네이션)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/admin/products — 제품 생성 (이미지·태그 동시 등록, 감사 로그 기록)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "products"
+              ]
+            },
+            "description": "제품 생성 (이미지·태그 동시 등록, 감사 로그 기록)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"productName\",\n  \"productManufacturer\": \"productManufacturer\",\n  \"productInfo\": \"productInfo\",\n  \"category\": \"category\",\n  \"minPrice\": 0,\n  \"maxPrice\": 0,\n  \"imageUrl\": \"https://example.com\",\n  \"isNew\": true,\n  \"isPopular\": true,\n  \"genderTarget\": \"M\",\n  \"images\": [\n    \"https://example.com\"\n  ],\n  \"tagIds\": [\n    \"sample-id\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/admin/products/:productId — 제품 상세 조회 (갤러리 이미지 + 연결 태그 포함)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/products/:productId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "products",
+                ":productId"
+              ],
+              "variable": [
+                {
+                  "key": "productId",
+                  "value": "",
+                  "description": "제품 ID"
+                }
+              ]
+            },
+            "description": "제품 상세 조회 (갤러리 이미지 + 연결 태그 포함)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH /api/v1/admin/products/:productId — 제품 수정 (부분 업데이트, images/tagIds 명시 시 전체 교체, 감사 로그 기록)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/products/:productId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "products",
+                ":productId"
+              ],
+              "variable": [
+                {
+                  "key": "productId",
+                  "value": "",
+                  "description": "제품 ID"
+                }
+              ]
+            },
+            "description": "제품 수정 (부분 업데이트, images/tagIds 명시 시 전체 교체, 감사 로그 기록)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"productName\",\n  \"productManufacturer\": \"productManufacturer\",\n  \"productInfo\": \"productInfo\",\n  \"category\": \"category\",\n  \"minPrice\": 0,\n  \"maxPrice\": 0,\n  \"imageUrl\": \"https://example.com\",\n  \"isNew\": true,\n  \"isPopular\": true,\n  \"genderTarget\": \"M\",\n  \"images\": [\n    \"https://example.com\"\n  ],\n  \"tagIds\": [\n    \"sample-id\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/admin/products/:productId — 제품 삭제 (CASCADE: product_images / product_tags / store_products)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/products/:productId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "products",
+                ":productId"
+              ],
+              "variable": [
+                {
+                  "key": "productId",
+                  "value": "",
+                  "description": "제품 ID"
+                }
+              ]
+            },
+            "description": "제품 삭제 (CASCADE: product_images / product_tags / store_products)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "POST /api/v1/admin/refresh — 어드민 refresh 토큰 회전 (httpOnly 쿠키 또는 body, 1회용 + family rotation)",
           "request": {
             "method": "POST",
@@ -870,6 +1107,109 @@
               ]
             },
             "description": "태그 삭제 (감사 로그 기록)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/admin/users — 회원 목록 조회 (이메일/닉네임 검색, status 필터, 페이지네이션). support_staff 토큰은 이메일 마스킹.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "q"
+                },
+                {
+                  "key": "status",
+                  "value": "0"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "회원 목록 조회 (이메일/닉네임 검색, status 필터, 페이지네이션). support_staff 토큰은 이메일 마스킹.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH /api/v1/admin/users/:userId/status — 회원 상태 변경 (1=활성, 0=비활성, -1=탈퇴, 감사 로그 기록)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/:userId/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                ":userId",
+                "status"
+              ],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "",
+                  "description": "회원 ID"
+                }
+              ]
+            },
+            "description": "회원 상태 변경 (1=활성, 0=비활성, -1=탈퇴, 감사 로그 기록)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "auth": {
               "type": "bearer",
               "bearer": [
