@@ -1940,7 +1940,7 @@
             "description": "상품 검색 (POST body)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"keyword\": \"keyword\",\n  \"category\": \"category\",\n  \"filter\": [\n    \"FEMALE\"\n  ],\n  \"page\": 1,\n  \"limit\": 20\n}",
+              "raw": "{\n  \"keyword\": \"keyword\",\n  \"category\": \"category\",\n  \"filter\": [\n    \"FEMALE\"\n  ],\n  \"page\": 1,\n  \"limit\": 20,\n  \"sortBy\": \"popular\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
