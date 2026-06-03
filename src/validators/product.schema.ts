@@ -46,5 +46,7 @@ export const searchProductsSchema = z.object({
     filter: z.array(filterEnum).optional(),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),
+    // service 의 listProducts.resolveOrderBy 가 이미 지원 — 검색 결과 정렬 옵션을 노출.
+    sortBy: z.enum(['popular', 'new', 'price_asc', 'price_desc']).optional(),
 });
 export type SearchProductsInput = z.infer<typeof searchProductsSchema>;
