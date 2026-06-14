@@ -18,6 +18,11 @@ export const getAnnouncementList = asyncHandler(async (_req: Request, res: Respo
     success(res, list);
 });
 
+export const getBannerList = asyncHandler(async (_req: Request, res: Response) => {
+    const list = await defaultService.getBannerList();
+    success(res, list);
+});
+
 export const postInquiry = asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = req.user?.userId;
     if (!userId) throw new AuthenticationError('인증이 필요합니다.', 'UNAUTHENTICATED');

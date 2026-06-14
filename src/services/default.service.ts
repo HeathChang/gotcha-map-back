@@ -1,9 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
 import { query, withTransaction } from '../config/database';
-import { TagRow, AnnouncementRow, InquiryRow } from '../types';
+import { TagRow, AnnouncementRow, BannerRow, InquiryRow } from '../types';
 
 const TAG_COLUMNS = 'tag_id, name, relation_type, created_at';
 const ANNOUNCEMENT_COLUMNS = 'announce_id, title, content, is_active, created_at, updated_at';
+const BANNER_COLUMNS = 'banner_id, title, image_url, link_url, sort_order, is_active, created_at, updated_at';
 const INQUIRY_COLUMNS =
     'inquiry_id, user_id, title, content, category, email, status, answer, answered_at, created_at, updated_at';
 
@@ -18,6 +19,17 @@ export type AnnouncementResponse = {
     announceId: string;
     title: string;
     content: string;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type BannerResponse = {
+    bannerId: string;
+    title: string | null;
+    imageUrl: string;
+    linkUrl: string | null;
+    sortOrder: number;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -57,6 +69,19 @@ function toAnnouncement(row: AnnouncementRow): AnnouncementResponse {
     };
 }
 
+function toBanner(row: BannerRow): BannerResponse {
+    return {
+        bannerId: row.banner_id,
+        title: row.title,
+        imageUrl: row.image_url,
+        linkUrl: row.link_url,
+        sortOrder: Number(row.sort_order),
+        isActive: Boolean(row.is_active),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+    };
+}
+
 function toInquiry(row: InquiryRow): InquiryResponse {
     return {
         inquiryId: row.inquiry_id,
@@ -88,6 +113,13 @@ export async function getAnnouncementList() {
         `SELECT ${ANNOUNCEMENT_COLUMNS} FROM announcements WHERE is_active = TRUE ORDER BY created_at DESC`,
     );
     return rows.map(toAnnouncement);
+}
+
+export async function getBannerList() {
+    const rows = await query<BannerRow[]>(
+        `SELECT ${BANNER_COLUMNS} FROM banners WHERE is_active = TRUE ORDER BY sort_order ASC, created_at DESC`,
+    );
+    return rows.map(toBanner);
 }
 
 export async function postInquiry(

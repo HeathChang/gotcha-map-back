@@ -5,16 +5,21 @@ import * as adminInquiryCtrl from '../controllers/adminInquiry.controller';
 import * as adminStoreCtrl from '../controllers/adminStore.controller';
 import * as adminTagCtrl from '../controllers/adminTag.controller';
 import * as adminAnnouncementCtrl from '../controllers/adminAnnouncement.controller';
+import * as adminBannerCtrl from '../controllers/adminBanner.controller';
 import * as adminAuditLogCtrl from '../controllers/adminAuditLog.controller';
 import * as adminUserCtrl from '../controllers/adminUser.controller';
 import * as adminProductCtrl from '../controllers/adminProduct.controller';
+import * as defaultCtrl from '../controllers/default.controller';
 import { defineRoute } from '../openapi/defineRoute';
 import { env } from '../config/env';
+import { imageUpload } from '../middleware/upload.middleware';
 import {
     adminAnnouncementListQuerySchema,
     adminAnswerInquirySchema,
     adminAuditLogListQuerySchema,
+    adminBannerListQuerySchema,
     adminCreateAnnouncementSchema,
+    adminCreateBannerSchema,
     adminCreateProductSchema,
     adminCreateStoreSchema,
     adminCreateTagSchema,
@@ -24,6 +29,7 @@ import {
     adminStoreListQuerySchema,
     adminTagListQuerySchema,
     adminUpdateAnnouncementSchema,
+    adminUpdateBannerSchema,
     adminUpdateProductSchema,
     adminUpdateStoreSchema,
     adminUpdateTagSchema,
@@ -270,6 +276,70 @@ defineRoute(adminRouter, BASE, {
     adminRoles: ['super_admin', 'content_manager'],
     pathParams: [{ name: 'announceId', description: '공지 ID' }],
     handler: adminAnnouncementCtrl.remove,
+});
+
+// ----------------------------------------------------------------
+// Admin Banners (배너 관리)
+// ----------------------------------------------------------------
+
+defineRoute(adminRouter, BASE, {
+    method: 'get',
+    path: '/banners',
+    tag: 'Admin',
+    summary: '배너 목록 조회 (페이지네이션, 제목 검색 / isActive 필터)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    query: adminBannerListQuerySchema,
+    handler: adminBannerCtrl.list,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'post',
+    path: '/banners',
+    tag: 'Admin',
+    summary: '배너 생성 (이미지 업로드 후 imageUrl 등록, 감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    body: adminCreateBannerSchema,
+    handler: adminBannerCtrl.create,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'patch',
+    path: '/banners/:bannerId',
+    tag: 'Admin',
+    summary: '배너 수정 (부분 업데이트 / isActive·순서 토글, 감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    pathParams: [{ name: 'bannerId', description: '배너 ID' }],
+    body: adminUpdateBannerSchema,
+    handler: adminBannerCtrl.update,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'delete',
+    path: '/banners/:bannerId',
+    tag: 'Admin',
+    summary: '배너 삭제 (감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    pathParams: [{ name: 'bannerId', description: '배너 ID' }],
+    handler: adminBannerCtrl.remove,
+});
+
+// ----------------------------------------------------------------
+// Admin Image Upload (관리자 이미지 업로드)
+// ----------------------------------------------------------------
+
+defineRoute(adminRouter, BASE, {
+    method: 'post',
+    path: '/images',
+    tag: 'Admin',
+    summary: '관리자 이미지 업로드 (multipart/form-data, field=image, max 5MB) → { imageUrl }',
+    adminAuth: true,
+    adminRoles: ['super_admin', 'content_manager'],
+    pre: [imageUpload.single('image')],
+    handler: defaultCtrl.uploadImage,
 });
 
 // ----------------------------------------------------------------

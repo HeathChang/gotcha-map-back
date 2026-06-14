@@ -94,6 +94,32 @@ export type AdminCreateAnnouncementInput = z.infer<typeof adminCreateAnnouncemen
 export const adminUpdateAnnouncementSchema = adminCreateAnnouncementSchema.partial();
 export type AdminUpdateAnnouncementInput = z.infer<typeof adminUpdateAnnouncementSchema>;
 
+// 어드민 배너 관리 —————————————————————————————————————————————
+
+export const adminBannerListQuerySchema = z.object({
+    q: z.string().trim().min(1).max(100).optional(),
+    isActive: z
+        .enum(['true', 'false'])
+        .optional()
+        .transform((v) => (v === undefined ? undefined : v === 'true')),
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(20),
+});
+export type AdminBannerListQuery = z.infer<typeof adminBannerListQuerySchema>;
+
+export const adminCreateBannerSchema = z.object({
+    // 업로드 응답이 상대경로(/uploads/...)이므로 url() 대신 비어있지 않은 문자열로 검증.
+    imageUrl: z.string().trim().min(1, '이미지를 업로드해주세요.').max(512),
+    title: z.string().trim().max(255).optional(),
+    linkUrl: z.string().trim().max(512).optional().default('https://www.google.com'),
+    sortOrder: z.coerce.number().int().min(0).optional().default(0),
+    isActive: z.boolean().optional().default(true),
+});
+export type AdminCreateBannerInput = z.infer<typeof adminCreateBannerSchema>;
+
+export const adminUpdateBannerSchema = adminCreateBannerSchema.partial();
+export type AdminUpdateBannerInput = z.infer<typeof adminUpdateBannerSchema>;
+
 // 어드민 제품 관리 ———————————————————————————————————————————————
 
 const GENDER_TARGETS = ['M', 'F', 'ALL'] as const;

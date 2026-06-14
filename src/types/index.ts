@@ -127,6 +127,20 @@ export interface AnnouncementRow {
 }
 
 // ================================================================
+// Banner
+// ================================================================
+export interface BannerRow {
+    banner_id: string;
+    title: string | null;
+    image_url: string;
+    link_url: string | null;
+    sort_order: number;
+    is_active: boolean;
+    created_at: Date;
+    updated_at: Date;
+}
+
+// ================================================================
 // Inquiry
 // ================================================================
 export type InquiryStatus = 'pending' | 'processing' | 'completed' | 'rejected';
