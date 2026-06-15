@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import {
     adminAuthMiddleware,
     requireAdminRole,
+    requireStoreOwnership,
 } from '../../src/middleware/adminAuth.middleware';
 import { errorMiddleware } from '../../src/middleware/error.middleware';
 import { env } from '../../src/config/env';
@@ -59,13 +60,13 @@ describe('adminAuthMiddleware', () => {
             userId: 'admin-1',
             email: 'ops@gachamap.io',
             kind: 'admin',
-            role: 'super_admin',
+            role: 'admin',
         });
         const res = await request(buildAdminApp())
             .get('/secure')
             .set('Authorization', `Bearer ${token}`);
         expect(res.status).toBe(200);
-        expect(res.body.data).toEqual({ adminId: 'admin-1', role: 'super_admin' });
+        expect(res.body.data).toEqual({ adminId: 'admin-1', role: 'admin' });
     });
 });
 
@@ -73,11 +74,11 @@ describe('requireAdminRole', () => {
     it('허용 역할 외에는 403 + ADMIN_ROLE_FORBIDDEN', async () => {
         const token = sign({
             userId: 'admin-2',
-            email: 'cm@gachamap.io',
+            email: 'member@gachamap.io',
             kind: 'admin',
-            role: 'content_manager',
+            role: 'member',
         });
-        const res = await request(buildAdminApp(['super_admin', 'support_staff']))
+        const res = await request(buildAdminApp(['admin', 'staff']))
             .get('/secure')
             .set('Authorization', `Bearer ${token}`);
         expect(res.status).toBe(403);
@@ -89,12 +90,64 @@ describe('requireAdminRole', () => {
             userId: 'admin-3',
             email: 'cs@gachamap.io',
             kind: 'admin',
-            role: 'support_staff',
+            role: 'staff',
         });
-        const res = await request(buildAdminApp(['super_admin', 'support_staff']))
+        const res = await request(buildAdminApp(['admin', 'staff']))
             .get('/secure')
             .set('Authorization', `Bearer ${token}`);
         expect(res.status).toBe(200);
-        expect(res.body.data.role).toBe('support_staff');
+        expect(res.body.data.role).toBe('staff');
+    });
+});
+
+describe('requireStoreOwnership', () => {
+    function buildOwnershipApp() {
+        const app = express();
+        app.get(
+            '/stores/:storeId/x',
+            adminAuthMiddleware,
+            requireStoreOwnership(),
+            (_req: Request, res: Response) => res.json({ data: 'ok' }),
+        );
+        app.use(errorMiddleware);
+        return app;
+    }
+
+    it('admin 은 임의 매장 통과 (전 매장 권한)', async () => {
+        const token = sign({ userId: 'a', email: 'a@x.com', kind: 'admin', role: 'admin' });
+        const res = await request(buildOwnershipApp())
+            .get('/stores/any-store/x')
+            .set('Authorization', `Bearer ${token}`);
+        expect(res.status).toBe(200);
+    });
+
+    it('member 는 자기 매장(storeId 일치) 통과', async () => {
+        const token = sign({
+            userId: 'm', email: 'm@x.com', kind: 'admin', role: 'member', storeId: 's1',
+        });
+        const res = await request(buildOwnershipApp())
+            .get('/stores/s1/x')
+            .set('Authorization', `Bearer ${token}`);
+        expect(res.status).toBe(200);
+    });
+
+    it('member 가 타 매장 접근 시 403 + STORE_OWNERSHIP_FORBIDDEN', async () => {
+        const token = sign({
+            userId: 'm', email: 'm@x.com', kind: 'admin', role: 'member', storeId: 's1',
+        });
+        const res = await request(buildOwnershipApp())
+            .get('/stores/s2/x')
+            .set('Authorization', `Bearer ${token}`);
+        expect(res.status).toBe(403);
+        expect(res.body.code).toBe('STORE_OWNERSHIP_FORBIDDEN');
+    });
+
+    it('배정 매장 없는 member 는 403 + NO_ASSIGNED_STORE', async () => {
+        const token = sign({ userId: 'm', email: 'm@x.com', kind: 'admin', role: 'member' });
+        const res = await request(buildOwnershipApp())
+            .get('/stores/s1/x')
+            .set('Authorization', `Bearer ${token}`);
+        expect(res.status).toBe(403);
+        expect(res.body.code).toBe('NO_ASSIGNED_STORE');
     });
 });

@@ -1,9 +1,7 @@
 /**
- * Admin 회원 — PII 마스킹 정책의 컨트롤러 통합 검증.
- * vision §9 v1 디폴트: super_admin 만 이메일 풀 노출, 그 외(support_staff)는 자동 마스킹.
- *
- * 이 동작은 actor role 을 service 까지 흘려야만 성립해서, 통합 경로 회귀 방지로
- * 같은 mock 데이터에 토큰만 바꿔 응답이 달라지는지 확인한다.
+ * Admin 회원 — 접근 권한 + PII 노출 정책의 컨트롤러 통합 검증.
+ * gotcha-map-policy §7 (Q2 확정): admin·staff 모두 이메일 풀 노출. member 는 회원 라우트 접근 불가.
+ * (마스킹 유틸 자체 검증은 tests/utils/mask.test.ts 에 있음.)
  */
 import request from 'supertest';
 
@@ -30,39 +28,37 @@ const FIXTURE_USER = {
     updated_at: new Date('2026-05-01'),
 };
 
-describe('GET /api/v1/admin/users — PII 마스킹', () => {
-    it('super_admin: 이메일 풀 노출', async () => {
+describe('GET /api/v1/admin/users — 접근 권한 + PII 노출', () => {
+    it('admin: 이메일 풀 노출', async () => {
         mockQuery
             .mockResolvedValueOnce([{ total: 1 }] as never)
             .mockResolvedValueOnce([FIXTURE_USER] as never);
 
         const res = await request(app)
             .get('/api/v1/admin/users')
-            .set('Authorization', `Bearer ${adminToken('super_admin')}`);
+            .set('Authorization', `Bearer ${adminToken('admin')}`);
 
         expect(res.status).toBe(200);
         expect(res.body.data.items[0].email).toBe('alice@example.com');
     });
 
-    it('support_staff: 이메일 마스킹 (al***@example.com 형식)', async () => {
+    it('staff: 이메일 풀 노출 (admin 과 동일)', async () => {
         mockQuery
             .mockResolvedValueOnce([{ total: 1 }] as never)
             .mockResolvedValueOnce([FIXTURE_USER] as never);
 
         const res = await request(app)
             .get('/api/v1/admin/users')
-            .set('Authorization', `Bearer ${adminToken('support_staff')}`);
+            .set('Authorization', `Bearer ${adminToken('staff')}`);
 
         expect(res.status).toBe(200);
-        const email = res.body.data.items[0].email as string;
-        expect(email).not.toBe('alice@example.com');
-        expect(email).toMatch(/^[a-z]+\*\*\*@example\.com$/);
+        expect(res.body.data.items[0].email).toBe('alice@example.com');
     });
 
-    it('content_manager 는 회원 라우트 접근 불가 — 403', async () => {
+    it('member 는 회원 라우트 접근 불가 — 403', async () => {
         const res = await request(app)
             .get('/api/v1/admin/users')
-            .set('Authorization', `Bearer ${adminToken('content_manager')}`);
+            .set('Authorization', `Bearer ${adminToken('member')}`);
         expect(res.status).toBe(403);
     });
 
@@ -73,7 +69,7 @@ describe('GET /api/v1/admin/users — PII 마스킹', () => {
 
         await request(app)
             .get('/api/v1/admin/users?status=1')
-            .set('Authorization', `Bearer ${adminToken('super_admin')}`);
+            .set('Authorization', `Bearer ${adminToken('admin')}`);
 
         const countArgs = mockQuery.mock.calls[0][1] as unknown[];
         expect(countArgs).toContain(1);
@@ -81,7 +77,7 @@ describe('GET /api/v1/admin/users — PII 마스킹', () => {
 });
 
 describe('PATCH /api/v1/admin/users/:userId/status', () => {
-    it('상태 변경 → 감사 로그 user.status 기록 + 마스킹된 응답', async () => {
+    it('상태 변경 → 감사 로그 user.status 기록 + 풀 노출 응답', async () => {
         mockQuery
             .mockResolvedValueOnce([FIXTURE_USER] as never)                // before
             .mockResolvedValueOnce({ affectedRows: 1 } as never)           // UPDATE
@@ -90,13 +86,13 @@ describe('PATCH /api/v1/admin/users/:userId/status', () => {
 
         const res = await request(app)
             .patch('/api/v1/admin/users/u1/status')
-            .set('Authorization', `Bearer ${adminToken('support_staff')}`)
+            .set('Authorization', `Bearer ${adminToken('staff')}`)
             .send({ status: 0 });
 
         expect(res.status).toBe(200);
         expect(res.body.data.userStatus).toBe(0);
-        // support_staff 응답이라 이메일 마스킹 적용
-        expect(res.body.data.email).toMatch(/\*\*\*/);
+        // staff 도 admin 과 동일하게 이메일 풀 노출
+        expect(res.body.data.email).toBe('alice@example.com');
 
         const auditArgs = mockQuery.mock.calls[3][1] as unknown[];
         expect(auditArgs[2]).toBe('user.status');
@@ -110,7 +106,7 @@ describe('PATCH /api/v1/admin/users/:userId/status', () => {
 
         const res = await request(app)
             .patch('/api/v1/admin/users/u1/status')
-            .set('Authorization', `Bearer ${adminToken('super_admin')}`)
+            .set('Authorization', `Bearer ${adminToken('admin')}`)
             .send({ status: 1 }); // FIXTURE_USER.user_status 와 동일
 
         expect(res.status).toBe(200);
@@ -120,7 +116,7 @@ describe('PATCH /api/v1/admin/users/:userId/status', () => {
     it('status 값 검증 — 1/0/-1 외에는 400', async () => {
         const res = await request(app)
             .patch('/api/v1/admin/users/u1/status')
-            .set('Authorization', `Bearer ${adminToken('super_admin')}`)
+            .set('Authorization', `Bearer ${adminToken('admin')}`)
             .send({ status: 2 });
         expect(res.status).toBe(400);
     });

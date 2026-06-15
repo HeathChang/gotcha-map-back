@@ -31,7 +31,7 @@ describe('GET /api/v1/admin/announcements', () => {
 
         const res = await request(app)
             .get('/api/v1/admin/announcements?isActive=true')
-            .set('Authorization', `Bearer ${adminToken('content_manager')}`);
+            .set('Authorization', `Bearer ${adminToken('staff')}`);
 
         expect(res.status).toBe(200);
         expect(res.body.data.items[0]).toMatchObject({ announceId: 'a1', isActive: true });
@@ -69,7 +69,7 @@ describe('PATCH /api/v1/admin/announcements/:announceId — isActive 토글', ()
 
         const res = await request(app)
             .patch('/api/v1/admin/announcements/a1')
-            .set('Authorization', `Bearer ${adminToken('super_admin')}`)
+            .set('Authorization', `Bearer ${adminToken('admin')}`)
             .send({ isActive: true });
 
         expect(res.status).toBe(200);
@@ -103,7 +103,7 @@ describe('POST /api/v1/admin/announcements', () => {
 
         const res = await request(app)
             .post('/api/v1/admin/announcements')
-            .set('Authorization', `Bearer ${adminToken('content_manager')}`)
+            .set('Authorization', `Bearer ${adminToken('staff')}`)
             .send({ title: '새 공지', content: '내용' });
 
         expect(res.status).toBe(200);
@@ -116,7 +116,7 @@ describe('POST /api/v1/admin/announcements', () => {
     it('내용 누락 시 400', async () => {
         const res = await request(app)
             .post('/api/v1/admin/announcements')
-            .set('Authorization', `Bearer ${adminToken('content_manager')}`)
+            .set('Authorization', `Bearer ${adminToken('staff')}`)
             .send({ title: 'X' });
         expect(res.status).toBe(400);
     });

@@ -16,10 +16,10 @@ const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockWithTransaction = withTransaction as jest.MockedFunction<typeof withTransaction>;
 
 describe('GET /api/v1/admin/inquiries', () => {
-    it('content_manager 는 접근 불가 (super_admin/support_staff 만)', async () => {
+    it('member 는 접근 불가 (admin/staff 만)', async () => {
         const res = await request(app)
             .get('/api/v1/admin/inquiries')
-            .set('Authorization', `Bearer ${adminToken('content_manager')}`);
+            .set('Authorization', `Bearer ${adminToken('member')}`);
         expect(res.status).toBe(403);
     });
 
@@ -43,7 +43,7 @@ describe('GET /api/v1/admin/inquiries', () => {
 
         const res = await request(app)
             .get('/api/v1/admin/inquiries')
-            .set('Authorization', `Bearer ${adminToken('support_staff')}`);
+            .set('Authorization', `Bearer ${adminToken('staff')}`);
 
         expect(res.status).toBe(200);
         expect(res.body.data.items[0]).toMatchObject({
@@ -70,7 +70,7 @@ describe('GET /api/v1/admin/inquiries/stats — SLA 통계', () => {
 
         const res = await request(app)
             .get('/api/v1/admin/inquiries/stats')
-            .set('Authorization', `Bearer ${adminToken('super_admin')}`);
+            .set('Authorization', `Bearer ${adminToken('admin')}`);
 
         expect(res.status).toBe(200);
         expect(res.body.data).toMatchObject({
@@ -131,7 +131,7 @@ describe('PATCH /api/v1/admin/inquiries/:inquiryId — 답변', () => {
 
         const res = await request(app)
             .patch('/api/v1/admin/inquiries/q1')
-            .set('Authorization', `Bearer ${adminToken('support_staff')}`)
+            .set('Authorization', `Bearer ${adminToken('staff')}`)
             .send({ status: 'completed', answer: '확인했습니다' });
 
         expect(res.status).toBe(200);

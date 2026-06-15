@@ -3,6 +3,7 @@ import { AdminAuthRequest } from '../types';
 import {
     createStore,
     deleteStore,
+    getStore,
     listStoresForAdmin,
     updateStore,
 } from '../services/store.service';
@@ -29,6 +30,15 @@ export const list = asyncHandler(async (req: Request, res: Response) => {
     const { q, page, limit } = req.query as unknown as AdminStoreListQuery;
     const result = await listStoresForAdmin({ q, page, limit });
     success(res, result);
+});
+
+export const detail = asyncHandler(async (req: Request, res: Response) => {
+    const storeId = (req.params as { storeId?: string }).storeId;
+    if (!storeId) {
+        throw new ValidationError('storeId 가 필요합니다.', 'MISSING_STORE_ID');
+    }
+    const store = await getStore(storeId);
+    success(res, store);
 });
 
 export const create = asyncHandler(async (req: Request, res: Response) => {

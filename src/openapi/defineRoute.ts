@@ -26,6 +26,8 @@ export interface DefineRouteOptions {
     pathParams?: PathParamDef[];
     /** 인증/검증 이전에 적용할 미들웨어 (rate limit, multer 등) */
     pre?: RequestHandler[];
+    /** 인증/역할 검사 통과 후, 본문 검증 이전에 적용할 미들웨어 (예: requireStoreOwnership — req.user 필요) */
+    postAuth?: RequestHandler[];
     handler: RequestHandler;
     responseExample?: unknown;
 }
@@ -52,6 +54,7 @@ export function defineRoute(
             handlers.push(requireAdminRole(...opts.adminRoles));
         }
     }
+    if (opts.postAuth) handlers.push(...opts.postAuth);
     if (opts.query) handlers.push(validate(opts.query, 'query'));
     if (opts.body) handlers.push(validate(opts.body, 'body'));
     handlers.push(opts.handler);

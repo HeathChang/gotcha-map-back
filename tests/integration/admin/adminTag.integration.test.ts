@@ -28,15 +28,15 @@ describe('GET /api/v1/admin/tags', () => {
         expect(res.body.code).toBe('MISSING_BEARER_TOKEN');
     });
 
-    it('support_staff 토큰은 403 — 태그 라우트는 super_admin/content_manager 만 허용', async () => {
+    it('member 토큰은 403 — 태그 라우트는 admin/staff 만 허용', async () => {
         const res = await request(app)
             .get('/api/v1/admin/tags')
-            .set('Authorization', `Bearer ${adminToken('support_staff')}`);
+            .set('Authorization', `Bearer ${adminToken('member')}`);
         expect(res.status).toBe(403);
         expect(res.body.code).toBe('ADMIN_ROLE_FORBIDDEN');
     });
 
-    it('content_manager 토큰으로 목록 조회 — pagination 응답 형태 검증', async () => {
+    it('staff 토큰으로 목록 조회 — pagination 응답 형태 검증', async () => {
         mockQuery
             .mockResolvedValueOnce([{ total: 2 }] as never) // COUNT
             .mockResolvedValueOnce([
@@ -46,7 +46,7 @@ describe('GET /api/v1/admin/tags', () => {
 
         const res = await request(app)
             .get('/api/v1/admin/tags')
-            .set('Authorization', `Bearer ${adminToken('content_manager')}`);
+            .set('Authorization', `Bearer ${adminToken('staff')}`);
 
         expect(res.status).toBe(200);
         expect(res.body.data.items).toHaveLength(2);
@@ -77,7 +77,7 @@ describe('POST /api/v1/admin/tags', () => {
 
         const res = await request(app)
             .post('/api/v1/admin/tags')
-            .set('Authorization', `Bearer ${adminToken('content_manager')}`)
+            .set('Authorization', `Bearer ${adminToken('staff')}`)
             .send({ name: '신상' });
 
         expect(res.status).toBe(200);
@@ -95,7 +95,7 @@ describe('POST /api/v1/admin/tags', () => {
     it('이름 누락 시 400 (zod 검증)', async () => {
         const res = await request(app)
             .post('/api/v1/admin/tags')
-            .set('Authorization', `Bearer ${adminToken('content_manager')}`)
+            .set('Authorization', `Bearer ${adminToken('staff')}`)
             .send({});
         expect(res.status).toBe(400);
     });
@@ -115,7 +115,7 @@ describe('PATCH /api/v1/admin/tags/:tagId', () => {
 
         const res = await request(app)
             .patch('/api/v1/admin/tags/t1')
-            .set('Authorization', `Bearer ${adminToken('super_admin')}`)
+            .set('Authorization', `Bearer ${adminToken('admin')}`)
             .send({ name: 'NEW' });
 
         expect(res.status).toBe(200);
@@ -141,7 +141,7 @@ describe('DELETE /api/v1/admin/tags/:tagId', () => {
 
         const res = await request(app)
             .delete('/api/v1/admin/tags/t1')
-            .set('Authorization', `Bearer ${adminToken('super_admin')}`);
+            .set('Authorization', `Bearer ${adminToken('admin')}`);
 
         expect(res.status).toBe(200);
 
@@ -157,7 +157,7 @@ describe('DELETE /api/v1/admin/tags/:tagId', () => {
 
         const res = await request(app)
             .delete('/api/v1/admin/tags/missing')
-            .set('Authorization', `Bearer ${adminToken('super_admin')}`);
+            .set('Authorization', `Bearer ${adminToken('admin')}`);
         expect(res.status).toBe(404);
         expect(res.body.code).toBe('TAG_NOT_FOUND');
     });

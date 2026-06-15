@@ -248,7 +248,9 @@ export async function deleteStore(storeId: string, actor: AuditActor) {
 }
 
 export async function getStoreGachaList(productId: string) {
-    const sql = `
+    // gotcha-map-policy §5 (옵션 A): 원본(카탈로그 store_products) + 매장 추가본(store_product_overrides)을
+    // 함께 노출한다. 원본 먼저, 매장 추가본을 뒤에 둔다. source 로 프론트가 구분한다.
+    const catalogSql = `
         SELECT s.store_id, s.name, s.address, s.lat, s.lon, s.phone, s.description,
                s.image_url, s.opening_hours, s.rating, s.created_at, s.updated_at,
                sp.price, sp.stock
@@ -257,12 +259,32 @@ export async function getStoreGachaList(productId: string) {
         WHERE sp.product_id = ?
         ORDER BY sp.price ASC
     `;
-    const rows = await query<Array<StoreRow & { price: number; stock: number | null }>>(sql, [
-        productId,
+    const overrideSql = `
+        SELECT s.store_id, s.name, s.address, s.lat, s.lon, s.phone, s.description,
+               s.image_url, s.opening_hours, s.rating, s.created_at, s.updated_at,
+               o.price, o.stock
+        FROM store_product_overrides o
+        JOIN stores s ON o.store_id = s.store_id
+        WHERE o.product_id = ?
+        ORDER BY o.price ASC
+    `;
+    const [catalogRows, overrideRows] = await Promise.all([
+        query<Array<StoreRow & { price: number; stock: number | null }>>(catalogSql, [productId]),
+        query<Array<StoreRow & { price: number; stock: number | null }>>(overrideSql, [productId]),
     ]);
-    return rows.map((row) => ({
-        ...toStoreResponse(row),
-        price: row.price,
-        stock: row.stock,
-    }));
+
+    return [
+        ...catalogRows.map((row) => ({
+            ...toStoreResponse(row),
+            price: row.price,
+            stock: row.stock,
+            source: 'catalog' as const,
+        })),
+        ...overrideRows.map((row) => ({
+            ...toStoreResponse(row),
+            price: row.price,
+            stock: row.stock,
+            source: 'store' as const,
+        })),
+    ];
 }

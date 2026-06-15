@@ -9,8 +9,11 @@ import * as adminBannerCtrl from '../controllers/adminBanner.controller';
 import * as adminAuditLogCtrl from '../controllers/adminAuditLog.controller';
 import * as adminUserCtrl from '../controllers/adminUser.controller';
 import * as adminProductCtrl from '../controllers/adminProduct.controller';
+import * as adminStoreProductCtrl from '../controllers/adminStoreProduct.controller';
+import * as adminManagementCtrl from '../controllers/adminManagement.controller';
 import * as defaultCtrl from '../controllers/default.controller';
 import { defineRoute } from '../openapi/defineRoute';
+import { requireStoreOwnership } from '../middleware/adminAuth.middleware';
 import { env } from '../config/env';
 import { imageUpload } from '../middleware/upload.middleware';
 import {
@@ -18,19 +21,27 @@ import {
     adminAnswerInquirySchema,
     adminAuditLogListQuerySchema,
     adminBannerListQuerySchema,
+    adminCreateAdminSchema,
     adminCreateAnnouncementSchema,
     adminCreateBannerSchema,
+    adminCreateOverrideSchema,
     adminCreateProductSchema,
+    adminCreateStoreProductSchema,
     adminCreateStoreSchema,
     adminCreateTagSchema,
     adminInquiryListQuerySchema,
+    adminListAdminsQuerySchema,
     adminLoginSchema,
     adminProductListQuerySchema,
+    adminResetAdminPasswordSchema,
     adminStoreListQuerySchema,
     adminTagListQuerySchema,
+    adminUpdateAdminStatusSchema,
     adminUpdateAnnouncementSchema,
     adminUpdateBannerSchema,
+    adminUpdateOverrideSchema,
     adminUpdateProductSchema,
+    adminUpdateStoreProductSchema,
     adminUpdateStoreSchema,
     adminUpdateTagSchema,
     adminUpdateUserStatusSchema,
@@ -104,7 +115,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '문의 목록 조회 (페이지네이션, 상태/검색 필터)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'support_staff'],
+    adminRoles: ['admin', 'staff'],
     query: adminInquiryListQuerySchema,
     handler: adminInquiryCtrl.list,
 });
@@ -115,7 +126,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '문의 SLA 통계 (상태별 건수 / 평균·중앙값 응답시간 / 24h 초과 미답변)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'support_staff'],
+    adminRoles: ['admin', 'staff'],
     handler: adminInquiryCtrl.stats,
 });
 
@@ -125,7 +136,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '문의 답변 저장 + 상태 변경 (감사 로그 기록)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'support_staff'],
+    adminRoles: ['admin', 'staff'],
     pathParams: [{ name: 'inquiryId', description: '문의 ID' }],
     body: adminAnswerInquirySchema,
     handler: adminInquiryCtrl.answer,
@@ -141,7 +152,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '매장 목록 조회 (페이지네이션, 이름/주소 검색)',
     adminAuth: true,
-    adminRoles: ['super_admin'],
+    adminRoles: ['admin', 'staff'],
     query: adminStoreListQuerySchema,
     handler: adminStoreCtrl.list,
 });
@@ -152,18 +163,31 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '매장 생성',
     adminAuth: true,
-    adminRoles: ['super_admin'],
+    adminRoles: ['admin', 'staff'],
     body: adminCreateStoreSchema,
     handler: adminStoreCtrl.create,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'get',
+    path: '/stores/:storeId',
+    tag: 'Admin',
+    summary: '매장 상세 조회 (member 는 자기 매장만 — 소유권 검사)',
+    adminAuth: true,
+    adminRoles: ['admin', 'staff', 'member'],
+    postAuth: [requireStoreOwnership()],
+    pathParams: [{ name: 'storeId', description: '매장 ID' }],
+    handler: adminStoreCtrl.detail,
 });
 
 defineRoute(adminRouter, BASE, {
     method: 'patch',
     path: '/stores/:storeId',
     tag: 'Admin',
-    summary: '매장 수정 (부분 업데이트)',
+    summary: '매장 수정 (부분 업데이트). member 는 자기 매장만 (소유권 검사)',
     adminAuth: true,
-    adminRoles: ['super_admin'],
+    adminRoles: ['admin', 'staff', 'member'],
+    postAuth: [requireStoreOwnership()],
     pathParams: [{ name: 'storeId', description: '매장 ID' }],
     body: adminUpdateStoreSchema,
     handler: adminStoreCtrl.update,
@@ -175,9 +199,132 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '매장 삭제',
     adminAuth: true,
-    adminRoles: ['super_admin'],
+    adminRoles: ['admin', 'staff'],
     pathParams: [{ name: 'storeId', description: '매장 ID' }],
     handler: adminStoreCtrl.remove,
+});
+
+// ----------------------------------------------------------------
+// Admin Store Products (매장 가격·재고 — gotcha-map-policy §4)
+//   admin/staff 전 매장, member 자기 매장(requireStoreOwnership). 가격 비교의 데이터 입력 경로.
+// ----------------------------------------------------------------
+
+const STORE_SCOPED_ROLES = ['admin', 'staff', 'member'] as const;
+
+defineRoute(adminRouter, BASE, {
+    method: 'get',
+    path: '/stores/:storeId/products',
+    tag: 'Admin',
+    summary: '매장 가격·재고 목록 (제품명 JOIN)',
+    adminAuth: true,
+    adminRoles: [...STORE_SCOPED_ROLES],
+    postAuth: [requireStoreOwnership()],
+    pathParams: [{ name: 'storeId', description: '매장 ID' }],
+    handler: adminStoreProductCtrl.listProducts,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'post',
+    path: '/stores/:storeId/products',
+    tag: 'Admin',
+    summary: '매장 가격·재고 등록 (기존 카탈로그 제품에 매핑, 감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: [...STORE_SCOPED_ROLES],
+    postAuth: [requireStoreOwnership()],
+    pathParams: [{ name: 'storeId', description: '매장 ID' }],
+    body: adminCreateStoreProductSchema,
+    handler: adminStoreProductCtrl.createProduct,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'patch',
+    path: '/stores/:storeId/products/:storeProductId',
+    tag: 'Admin',
+    summary: '매장 가격·재고 수정 (감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: [...STORE_SCOPED_ROLES],
+    postAuth: [requireStoreOwnership()],
+    pathParams: [
+        { name: 'storeId', description: '매장 ID' },
+        { name: 'storeProductId', description: '매장 상품 매핑 ID' },
+    ],
+    body: adminUpdateStoreProductSchema,
+    handler: adminStoreProductCtrl.updateProduct,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'delete',
+    path: '/stores/:storeId/products/:storeProductId',
+    tag: 'Admin',
+    summary: '매장 가격·재고 삭제 (감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: [...STORE_SCOPED_ROLES],
+    postAuth: [requireStoreOwnership()],
+    pathParams: [
+        { name: 'storeId', description: '매장 ID' },
+        { name: 'storeProductId', description: '매장 상품 매핑 ID' },
+    ],
+    handler: adminStoreProductCtrl.removeProduct,
+});
+
+// ----------------------------------------------------------------
+// Admin Store Catalog Overrides (매장별 카탈로그 추가/보강 — gotcha-map-policy §5, 옵션 A)
+// ----------------------------------------------------------------
+
+defineRoute(adminRouter, BASE, {
+    method: 'get',
+    path: '/stores/:storeId/catalog',
+    tag: 'Admin',
+    summary: '매장 카탈로그 오버라이드 목록',
+    adminAuth: true,
+    adminRoles: [...STORE_SCOPED_ROLES],
+    postAuth: [requireStoreOwnership()],
+    pathParams: [{ name: 'storeId', description: '매장 ID' }],
+    handler: adminStoreProductCtrl.listCatalog,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'post',
+    path: '/stores/:storeId/catalog',
+    tag: 'Admin',
+    summary: '매장 카탈로그 추가 (productId null=매장 신규 상품, 감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: [...STORE_SCOPED_ROLES],
+    postAuth: [requireStoreOwnership()],
+    pathParams: [{ name: 'storeId', description: '매장 ID' }],
+    body: adminCreateOverrideSchema,
+    handler: adminStoreProductCtrl.createCatalog,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'patch',
+    path: '/stores/:storeId/catalog/:overrideId',
+    tag: 'Admin',
+    summary: '매장 카탈로그 항목 수정 (감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: [...STORE_SCOPED_ROLES],
+    postAuth: [requireStoreOwnership()],
+    pathParams: [
+        { name: 'storeId', description: '매장 ID' },
+        { name: 'overrideId', description: '오버라이드 ID' },
+    ],
+    body: adminUpdateOverrideSchema,
+    handler: adminStoreProductCtrl.updateCatalog,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'delete',
+    path: '/stores/:storeId/catalog/:overrideId',
+    tag: 'Admin',
+    summary: '매장 카탈로그 항목 삭제 (감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: [...STORE_SCOPED_ROLES],
+    postAuth: [requireStoreOwnership()],
+    pathParams: [
+        { name: 'storeId', description: '매장 ID' },
+        { name: 'overrideId', description: '오버라이드 ID' },
+    ],
+    handler: adminStoreProductCtrl.removeCatalog,
 });
 
 // ----------------------------------------------------------------
@@ -190,7 +337,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '태그 목록 조회 (페이지네이션, 이름 검색 / relationType 필터)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     query: adminTagListQuerySchema,
     handler: adminTagCtrl.list,
 });
@@ -201,7 +348,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '태그 생성 (감사 로그 기록)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     body: adminCreateTagSchema,
     handler: adminTagCtrl.create,
 });
@@ -212,7 +359,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '태그 수정 (부분 업데이트, 감사 로그 기록)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     pathParams: [{ name: 'tagId', description: '태그 ID' }],
     body: adminUpdateTagSchema,
     handler: adminTagCtrl.update,
@@ -224,7 +371,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '태그 삭제 (감사 로그 기록)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     pathParams: [{ name: 'tagId', description: '태그 ID' }],
     handler: adminTagCtrl.remove,
 });
@@ -239,7 +386,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '공지 목록 조회 (페이지네이션, 제목 검색 / isActive 필터)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     query: adminAnnouncementListQuerySchema,
     handler: adminAnnouncementCtrl.list,
 });
@@ -250,7 +397,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '공지 생성 (감사 로그 기록)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     body: adminCreateAnnouncementSchema,
     handler: adminAnnouncementCtrl.create,
 });
@@ -261,7 +408,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '공지 수정 (부분 업데이트 / isActive 토글, 감사 로그 기록)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     pathParams: [{ name: 'announceId', description: '공지 ID' }],
     body: adminUpdateAnnouncementSchema,
     handler: adminAnnouncementCtrl.update,
@@ -273,7 +420,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '공지 삭제 (감사 로그 기록)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     pathParams: [{ name: 'announceId', description: '공지 ID' }],
     handler: adminAnnouncementCtrl.remove,
 });
@@ -288,7 +435,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '배너 목록 조회 (페이지네이션, 제목 검색 / isActive 필터)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     query: adminBannerListQuerySchema,
     handler: adminBannerCtrl.list,
 });
@@ -299,7 +446,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '배너 생성 (이미지 업로드 후 imageUrl 등록, 감사 로그 기록)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     body: adminCreateBannerSchema,
     handler: adminBannerCtrl.create,
 });
@@ -310,7 +457,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '배너 수정 (부분 업데이트 / isActive·순서 토글, 감사 로그 기록)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     pathParams: [{ name: 'bannerId', description: '배너 ID' }],
     body: adminUpdateBannerSchema,
     handler: adminBannerCtrl.update,
@@ -322,7 +469,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '배너 삭제 (감사 로그 기록)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     pathParams: [{ name: 'bannerId', description: '배너 ID' }],
     handler: adminBannerCtrl.remove,
 });
@@ -337,7 +484,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '관리자 이미지 업로드 (multipart/form-data, field=image, max 5MB) → { imageUrl }',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     pre: [imageUpload.single('image')],
     handler: defaultCtrl.uploadImage,
 });
@@ -352,7 +499,8 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '제품 목록 조회 (이름 검색, category·isNew·isPopular·genderTarget 필터, 페이지네이션)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    // member 도 자기 매장 가격·재고를 매길 제품을 고르기 위해 카탈로그를 읽는다(읽기 전용).
+    adminRoles: ['admin', 'staff', 'member'],
     query: adminProductListQuerySchema,
     handler: adminProductCtrl.list,
 });
@@ -363,7 +511,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '제품 상세 조회 (갤러리 이미지 + 연결 태그 포함)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff', 'member'],
     pathParams: [{ name: 'productId', description: '제품 ID' }],
     handler: adminProductCtrl.detail,
 });
@@ -374,7 +522,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '제품 생성 (이미지·태그 동시 등록, 감사 로그 기록)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     body: adminCreateProductSchema,
     handler: adminProductCtrl.create,
 });
@@ -385,7 +533,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '제품 수정 (부분 업데이트, images/tagIds 명시 시 전체 교체, 감사 로그 기록)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     pathParams: [{ name: 'productId', description: '제품 ID' }],
     body: adminUpdateProductSchema,
     handler: adminProductCtrl.update,
@@ -397,7 +545,7 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '제품 삭제 (CASCADE: product_images / product_tags / store_products)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'content_manager'],
+    adminRoles: ['admin', 'staff'],
     pathParams: [{ name: 'productId', description: '제품 ID' }],
     handler: adminProductCtrl.remove,
 });
@@ -411,9 +559,9 @@ defineRoute(adminRouter, BASE, {
     path: '/users',
     tag: 'Admin',
     summary:
-        '회원 목록 조회 (이메일/닉네임 검색, status 필터, 페이지네이션). support_staff 토큰은 이메일 마스킹.',
+        '회원 목록 조회 (이메일/닉네임 검색, status 필터, 페이지네이션). admin·staff 는 이메일 풀 노출.',
     adminAuth: true,
-    adminRoles: ['super_admin', 'support_staff'],
+    adminRoles: ['admin', 'staff'],
     query: adminUserListQuerySchema,
     handler: adminUserCtrl.list,
 });
@@ -424,14 +572,14 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '회원 상태 변경 (1=활성, 0=비활성, -1=탈퇴, 감사 로그 기록)',
     adminAuth: true,
-    adminRoles: ['super_admin', 'support_staff'],
+    adminRoles: ['admin', 'staff'],
     pathParams: [{ name: 'userId', description: '회원 ID' }],
     body: adminUpdateUserStatusSchema,
     handler: adminUserCtrl.updateStatus,
 });
 
 // ----------------------------------------------------------------
-// Admin Audit Logs (감사 로그 — 읽기 전용, super_admin 전용)
+// Admin Audit Logs (감사 로그 — 읽기 전용, admin 전용)
 // ----------------------------------------------------------------
 
 defineRoute(adminRouter, BASE, {
@@ -440,7 +588,58 @@ defineRoute(adminRouter, BASE, {
     tag: 'Admin',
     summary: '감사 로그 목록 조회 (페이지네이션, targetType/action 필터)',
     adminAuth: true,
-    adminRoles: ['super_admin'],
+    adminRoles: ['admin'],
     query: adminAuditLogListQuerySchema,
     handler: adminAuditLogCtrl.list,
+});
+
+// ----------------------------------------------------------------
+// Admin Operator Management (운영자 계정 관리 — admin 전용, gotcha-map-policy §9)
+//   계정 생성(role 선택 + member 매장 배정) / 상태 변경 / 비밀번호 재설정. 전부 감사 로그.
+// ----------------------------------------------------------------
+
+defineRoute(adminRouter, BASE, {
+    method: 'get',
+    path: '/admins',
+    tag: 'Admin',
+    summary: '운영자 목록 조회 (이메일/이름 검색, role 필터, 매장명 JOIN)',
+    adminAuth: true,
+    adminRoles: ['admin'],
+    query: adminListAdminsQuerySchema,
+    handler: adminManagementCtrl.list,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'post',
+    path: '/admins',
+    tag: 'Admin',
+    summary: '운영자 계정 생성 (member 는 storeId 필수, 감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: ['admin'],
+    body: adminCreateAdminSchema,
+    handler: adminManagementCtrl.create,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'patch',
+    path: '/admins/:adminId/status',
+    tag: 'Admin',
+    summary: '운영자 활성/비활성 변경 (1=활성, 0=비활성, 감사 로그 기록)',
+    adminAuth: true,
+    adminRoles: ['admin'],
+    pathParams: [{ name: 'adminId', description: '운영자 ID' }],
+    body: adminUpdateAdminStatusSchema,
+    handler: adminManagementCtrl.updateStatus,
+});
+
+defineRoute(adminRouter, BASE, {
+    method: 'post',
+    path: '/admins/:adminId/password',
+    tag: 'Admin',
+    summary: '운영자 비밀번호 재설정 (감사 로그 기록 — diff 미저장)',
+    adminAuth: true,
+    adminRoles: ['admin'],
+    pathParams: [{ name: 'adminId', description: '운영자 ID' }],
+    body: adminResetAdminPasswordSchema,
+    handler: adminManagementCtrl.resetPassword,
 });

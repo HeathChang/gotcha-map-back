@@ -57,7 +57,7 @@ describe('GET /api/v1/admin/products', () => {
 
         const res = await request(app)
             .get('/api/v1/admin/products')
-            .set('Authorization', `Bearer ${adminToken('content_manager')}`);
+            .set('Authorization', `Bearer ${adminToken('staff')}`);
 
         expect(res.status).toBe(200);
         expect(res.body.data.items[0]).toMatchObject({
@@ -84,7 +84,7 @@ describe('GET /api/v1/admin/products/:productId', () => {
 
         const res = await request(app)
             .get('/api/v1/admin/products/p1')
-            .set('Authorization', `Bearer ${adminToken('content_manager')}`);
+            .set('Authorization', `Bearer ${adminToken('staff')}`);
 
         expect(res.status).toBe(200);
         expect(res.body.data.images).toEqual(['https://img/1.jpg', 'https://img/2.jpg']);
@@ -98,7 +98,7 @@ describe('POST /api/v1/admin/products', () => {
     it('가격 역전(minPrice > maxPrice) 시 400 — zod refine', async () => {
         const res = await request(app)
             .post('/api/v1/admin/products')
-            .set('Authorization', `Bearer ${adminToken('content_manager')}`)
+            .set('Authorization', `Bearer ${adminToken('staff')}`)
             .send({ productName: 'X', minPrice: 10000, maxPrice: 5000 });
         expect(res.status).toBe(400);
     });
@@ -111,7 +111,7 @@ describe('POST /api/v1/admin/products', () => {
 
         const res = await request(app)
             .post('/api/v1/admin/products')
-            .set('Authorization', `Bearer ${adminToken('content_manager')}`)
+            .set('Authorization', `Bearer ${adminToken('staff')}`)
             .send({
                 productName: '신상',
                 minPrice: 1000,
@@ -138,7 +138,7 @@ describe('POST /api/v1/admin/products', () => {
 
         const res = await request(app)
             .post('/api/v1/admin/products')
-            .set('Authorization', `Bearer ${adminToken('content_manager')}`)
+            .set('Authorization', `Bearer ${adminToken('staff')}`)
             .send({ productName: '신상', minPrice: 1000, maxPrice: 2000 });
 
         expect(res.status).toBe(200);

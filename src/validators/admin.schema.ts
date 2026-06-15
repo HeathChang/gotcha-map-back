@@ -210,7 +210,82 @@ export const adminUpdateUserStatusSchema = z.object({
 });
 export type AdminUpdateUserStatusInput = z.infer<typeof adminUpdateUserStatusSchema>;
 
-// 어드민 감사 로그 (읽기 전용, super_admin) ——————————————————————————
+// 어드민 매장 가격·재고 (store_products) ———————————————————————————
+// gotcha-map-policy §4: admin/staff 전 매장, member 자기 매장(소유권 가드).
+
+export const adminCreateStoreProductSchema = z.object({
+    productId: z.string().trim().min(1, 'productId 가 필요합니다.').max(36),
+    price: z.coerce.number().int().nonnegative(),
+    stock: z.coerce.number().int().nonnegative().optional().nullable(),
+});
+export type AdminCreateStoreProductInput = z.infer<typeof adminCreateStoreProductSchema>;
+
+export const adminUpdateStoreProductSchema = z
+    .object({
+        price: z.coerce.number().int().nonnegative().optional(),
+        stock: z.coerce.number().int().nonnegative().optional().nullable(),
+    })
+    .refine((d) => d.price !== undefined || d.stock !== undefined, {
+        message: 'price 또는 stock 중 하나는 보내야 합니다.',
+    });
+export type AdminUpdateStoreProductInput = z.infer<typeof adminUpdateStoreProductSchema>;
+
+// 어드민 매장별 카탈로그 오버라이드 (store_product_overrides) ——————————————
+// gotcha-map-policy §5 (옵션 A). productId null = 매장 신규 추가 상품.
+
+export const adminCreateOverrideSchema = z.object({
+    productId: z.string().trim().min(1).max(36).optional().nullable(),
+    productName: z.string().trim().min(1, '상품명을 입력해주세요.').max(255),
+    productInfo: z.string().trim().max(10000).optional().nullable(),
+    imageUrl: z.string().trim().url('유효한 이미지 URL이 아닙니다.').max(512).optional().nullable(),
+    price: z.coerce.number().int().nonnegative().optional().default(0),
+    stock: z.coerce.number().int().nonnegative().optional().nullable(),
+});
+export type AdminCreateOverrideInput = z.infer<typeof adminCreateOverrideSchema>;
+
+export const adminUpdateOverrideSchema = adminCreateOverrideSchema.partial();
+export type AdminUpdateOverrideInput = z.infer<typeof adminUpdateOverrideSchema>;
+
+// 어드민 운영자 관리 (admin_users) — admin 전용 ——————————————————————
+// gotcha-map-policy §9 (Q5): admin 이 /admins 화면에서 계정 생성 + 매장 배정.
+
+const ADMIN_ROLES = ['admin', 'staff', 'member'] as const;
+
+export const adminListAdminsQuerySchema = z.object({
+    q: z.string().trim().min(1).max(100).optional(),
+    role: z.enum(ADMIN_ROLES).optional(),
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(20),
+});
+export type AdminListAdminsQuery = z.infer<typeof adminListAdminsQuerySchema>;
+
+export const adminCreateAdminSchema = z
+    .object({
+        email: z.string().email('유효한 이메일 형식이 아닙니다.').max(255),
+        password: z.string().min(8, '비밀번호는 8자 이상이어야 합니다.').max(128),
+        name: z.string().trim().min(1, '이름을 입력해주세요.').max(50),
+        role: z.enum(ADMIN_ROLES),
+        // member 는 담당 매장 필수, admin/staff 는 비워둔다.
+        storeId: z.string().trim().min(1).max(36).optional().nullable(),
+    })
+    .refine((d) => d.role !== 'member' || (d.storeId !== undefined && d.storeId !== null), {
+        message: 'member 는 담당 매장(storeId)이 필요합니다.',
+        path: ['storeId'],
+    });
+export type AdminCreateAdminInput = z.infer<typeof adminCreateAdminSchema>;
+
+// admin_status: 1=활성, 0=비활성 (탈퇴 개념 없음).
+export const adminUpdateAdminStatusSchema = z.object({
+    status: z.union([z.literal(1), z.literal(0)]),
+});
+export type AdminUpdateAdminStatusInput = z.infer<typeof adminUpdateAdminStatusSchema>;
+
+export const adminResetAdminPasswordSchema = z.object({
+    password: z.string().min(8, '비밀번호는 8자 이상이어야 합니다.').max(128),
+});
+export type AdminResetAdminPasswordInput = z.infer<typeof adminResetAdminPasswordSchema>;
+
+// 어드민 감사 로그 (읽기 전용, admin) ——————————————————————————
 
 export const adminAuditLogListQuerySchema = z.object({
     // 정확 일치 필터. target_type 예: tag / announcement / store / inquiry.

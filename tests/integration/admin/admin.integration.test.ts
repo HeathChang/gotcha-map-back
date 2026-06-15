@@ -36,7 +36,7 @@ describe('POST /api/v1/admin/login', () => {
                 email: 'ops@gachamap.io',
                 password: hashed,
                 name: '운영자',
-                role: 'super_admin',
+                role: 'admin',
                 admin_status: 1,
                 created_at: new Date(),
                 updated_at: new Date(),
@@ -71,7 +71,7 @@ describe('GET /api/v1/admin/me', () => {
                 admin_id: 'admin-test',
                 email: 'ops@gachamap.io',
                 name: '운영자',
-                role: 'super_admin',
+                role: 'admin',
                 admin_status: 1,
                 created_at: new Date('2026-01-01'),
                 updated_at: new Date('2026-01-01'),
@@ -80,13 +80,13 @@ describe('GET /api/v1/admin/me', () => {
 
         const res = await request(app)
             .get('/api/v1/admin/me')
-            .set('Authorization', `Bearer ${adminToken('super_admin')}`);
+            .set('Authorization', `Bearer ${adminToken('admin')}`);
 
         expect(res.status).toBe(200);
         expect(res.body.data).toMatchObject({
             adminId: 'admin-test',
             email: 'ops@gachamap.io',
-            role: 'super_admin',
+            role: 'admin',
         });
     });
 

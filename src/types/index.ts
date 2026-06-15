@@ -23,13 +23,17 @@ export interface PaginationResult {
 // JWT 토큰 페이로드
 //   kind 미지정 또는 'user' = 일반 사용자 토큰 (기존 호환).
 //   'admin' = 어드민 토큰. role 필수. adminAuth 미들웨어가 kind 일치를 강제한다.
-export type AdminRole = 'super_admin' | 'content_manager' | 'support_staff';
+// 운영 역할 (gotcha-map-policy §2): admin(전권) / staff(중앙 운영) / member(매장 점주).
+//   주의: member 는 admin_users 의 점주 역할이며, 소비자 회원(users, kind:'user')과 다르다.
+export type AdminRole = 'admin' | 'staff' | 'member';
 
 export interface JwtPayload {
     userId: string;
     email: string;
     kind?: 'user' | 'admin';
     role?: AdminRole;
+    // member 의 담당 매장. admin/staff/일반 user 는 undefined/null. 소유권 가드가 사용.
+    storeId?: string | null;
 }
 
 // 인증된 요청
@@ -42,6 +46,8 @@ export interface AdminAuthRequest extends Request {
     user: Required<Pick<JwtPayload, 'userId' | 'email'>> & {
         kind: 'admin';
         role: AdminRole;
+        // member 의 담당 매장. requireStoreOwnership 가드가 대상 store 와 대조한다.
+        storeId?: string | null;
     };
 }
 
@@ -97,6 +103,32 @@ export interface StoreRow {
     image_url: string | null;
     opening_hours: string | null;
     rating: number;
+    created_at: Date;
+    updated_at: Date;
+}
+
+// 매장별 가격·재고 (가격 비교 정본). admin/staff 전 매장, member 자기 매장.
+export interface StoreProductRow {
+    id: string;
+    store_id: string;
+    product_id: string;
+    price: number;
+    stock: number | null;
+    created_at: Date;
+    updated_at: Date;
+}
+
+// 매장별 카탈로그 오버라이드 (gotcha-map-policy §5). product_id NULL = 매장 신규 추가 상품.
+export interface StoreProductOverrideRow {
+    override_id: string;
+    store_id: string;
+    product_id: string | null;
+    product_name: string;
+    product_info: string | null;
+    image_url: string | null;
+    price: number;
+    stock: number | null;
+    created_by_admin_id: string | null;
     created_at: Date;
     updated_at: Date;
 }
@@ -178,6 +210,8 @@ export interface AdminUserRow {
     password: string;
     name: string;
     role: AdminRole;
+    // member 의 담당 매장 (admin/staff 는 NULL). FK → stores.store_id.
+    store_id: string | null;
     admin_status: number;
     created_at: Date;
     updated_at: Date;

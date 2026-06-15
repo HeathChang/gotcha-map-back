@@ -45,6 +45,8 @@ export function adminAuthMiddleware(
         email: decoded.email,
         kind: 'admin',
         role: decoded.role,
+        // member 의 담당 매장 (admin/staff 는 null). requireStoreOwnership 가 사용.
+        storeId: decoded.storeId ?? null,
     };
     setUserId(decoded.userId);
     next();
@@ -56,6 +58,46 @@ export function requireAdminRole(...allowed: AdminRole[]) {
         const user = (req as AdminAuthRequest).user;
         if (!user || !allowed.includes(user.role)) {
             next(new AuthorizationError('이 작업에 대한 권한이 없습니다.', 'ADMIN_ROLE_FORBIDDEN'));
+            return;
+        }
+        next();
+    };
+}
+
+/**
+ * 매장 소유권 검사 (gotcha-map-policy §3 — 행 단위 권한). requireAdminRole 뒤에 체이닝한다.
+ *  - admin / staff: 전 매장 권한 → 항상 통과.
+ *  - member: 담당 매장(req.user.storeId)이 있어야 하고, 대상 store 가 그 매장일 때만 통과.
+ * extractStoreId 로 요청에서 대상 store id 를 뽑는다 (기본: req.params.storeId).
+ * 대상 store id 가 없으면(예: 자기 매장 전용 핸들러) member 라도 통과시키고, 핸들러가
+ * req.user.storeId 를 직접 사용하도록 한다.
+ */
+export function requireStoreOwnership(
+    extractStoreId: (req: Request) => string | undefined = (req) =>
+        typeof req.params.storeId === 'string' ? req.params.storeId : undefined,
+) {
+    return (req: Request, _res: Response, next: NextFunction): void => {
+        const user = (req as AdminAuthRequest).user;
+        if (!user) {
+            next(new AuthenticationError('인증이 필요합니다.', 'ADMIN_TOKEN_REQUIRED'));
+            return;
+        }
+        if (user.role !== 'member') {
+            next();
+            return;
+        }
+        if (!user.storeId) {
+            next(new AuthorizationError('배정된 매장이 없습니다.', 'NO_ASSIGNED_STORE'));
+            return;
+        }
+        const targetStoreId = extractStoreId(req);
+        if (targetStoreId !== undefined && targetStoreId !== user.storeId) {
+            next(
+                new AuthorizationError(
+                    '자기 매장에 대해서만 작업할 수 있습니다.',
+                    'STORE_OWNERSHIP_FORBIDDEN',
+                ),
+            );
             return;
         }
         next();

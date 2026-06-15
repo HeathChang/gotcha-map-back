@@ -38,11 +38,12 @@ function toAdminUser(row: PublicUserRow): AdminUserResponse {
 }
 
 /**
- * super_admin 만 PII(이메일) 풀 노출. support_staff 등은 마스킹.
- * vision §7 — 운영자 권한별 PII 접근 정책의 v1 디폴트.
+ * admin·staff 는 PII(이메일) 풀 노출 (gotcha-map-policy §7 — Q2 확정).
+ * member 는 회원 라우트에 접근하지 못하므로 도달하지 않는다.
+ * 마스킹 분기는 향후 역할 추가 대비로 유지(현 운영 역할에는 적용 안 됨).
  */
 function applyPiiMask(user: AdminUserResponse, role: AdminRole): AdminUserResponse {
-    if (role === 'super_admin') return user;
+    if (role === 'admin' || role === 'staff') return user;
     return {
         ...user,
         email: maskEmail(user.email) ?? '***',

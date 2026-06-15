@@ -31,10 +31,10 @@ const STORE_ROW = {
 };
 
 describe('Admin 매장 권한', () => {
-    it('content_manager 는 매장 라우트 접근 불가 (super_admin 만)', async () => {
+    it('member 는 매장 목록 라우트 접근 불가 (admin/staff 만)', async () => {
         const res = await request(app)
             .get('/api/v1/admin/stores')
-            .set('Authorization', `Bearer ${adminToken('content_manager')}`);
+            .set('Authorization', `Bearer ${adminToken('member')}`);
         expect(res.status).toBe(403);
     });
 });
@@ -49,7 +49,7 @@ describe('POST /api/v1/admin/stores — 감사 로그 보강 회귀 방지', () 
 
         const res = await request(app)
             .post('/api/v1/admin/stores')
-            .set('Authorization', `Bearer ${adminToken('super_admin')}`)
+            .set('Authorization', `Bearer ${adminToken('admin')}`)
             .send({ name: '신규점', address: '서울', lat: 37.5, lon: 127.0 });
 
         expect(res.status).toBe(200);
@@ -70,7 +70,7 @@ describe('PATCH /api/v1/admin/stores/:storeId', () => {
 
         const res = await request(app)
             .patch('/api/v1/admin/stores/s1')
-            .set('Authorization', `Bearer ${adminToken('super_admin')}`)
+            .set('Authorization', `Bearer ${adminToken('admin')}`)
             .send({ name: '강남역점-NEW' });
 
         expect(res.status).toBe(200);
@@ -85,7 +85,7 @@ describe('PATCH /api/v1/admin/stores/:storeId', () => {
 
         const res = await request(app)
             .patch('/api/v1/admin/stores/s1')
-            .set('Authorization', `Bearer ${adminToken('super_admin')}`)
+            .set('Authorization', `Bearer ${adminToken('admin')}`)
             .send({});
 
         expect(res.status).toBe(200);
@@ -102,7 +102,7 @@ describe('DELETE /api/v1/admin/stores/:storeId', () => {
 
         const res = await request(app)
             .delete('/api/v1/admin/stores/s1')
-            .set('Authorization', `Bearer ${adminToken('super_admin')}`);
+            .set('Authorization', `Bearer ${adminToken('admin')}`);
 
         expect(res.status).toBe(200);
 

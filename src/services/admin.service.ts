@@ -15,7 +15,7 @@ import {
 } from './adminTokens.service';
 
 const PUBLIC_ADMIN_COLUMNS =
-    'admin_id, email, name, role, admin_status, created_at, updated_at';
+    'admin_id, email, name, role, store_id, admin_status, created_at, updated_at';
 
 type PublicAdminRow = Omit<AdminUserRow, 'password'>;
 
@@ -24,6 +24,8 @@ export interface AdminPublicProfile {
     email: string;
     name: string;
     role: AdminRole;
+    // member 의 담당 매장 (admin/staff 는 null). FE 가 /my-store 진입·소유권 표시에 사용.
+    storeId: string | null;
     createdAt: Date;
 }
 
@@ -33,6 +35,7 @@ function toAdminProfile(row: PublicAdminRow): AdminPublicProfile {
         email: row.email,
         name: row.name,
         role: row.role,
+        storeId: row.store_id,
         createdAt: row.created_at,
     };
 }
@@ -77,6 +80,8 @@ export async function loginAdmin(
         email: row.email,
         kind: 'admin',
         role: row.role,
+        // member 는 담당 매장을 토큰에 실어 소유권 가드가 DB 조회 없이 검사하게 한다.
+        storeId: row.store_id,
     };
     const tokens: AdminIssuedTokens = await issueAdminTokens(payload, ctx);
 
