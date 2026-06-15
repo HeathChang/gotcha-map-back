@@ -21,3 +21,9 @@ export const getStoreGachaList = asyncHandler(async (req: Request, res: Response
     const stores = await storeService.getStoreGachaList(productId);
     success(res, stores);
 });
+
+export const getStoreCatalog = asyncHandler(async (req: Request, res: Response) => {
+    const { storeId } = req.query as { storeId: string };
+    const products = await storeService.getStoreCatalog(storeId);
+    success(res, products);
+});

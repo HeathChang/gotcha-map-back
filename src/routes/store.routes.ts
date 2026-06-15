@@ -36,3 +36,12 @@ defineRoute(storeRouter, BASE, {
     query: storeByProductQuerySchema,
     handler: storeCtrl.getStoreGachaList,
 });
+
+defineRoute(storeRouter, BASE, {
+    method: 'get',
+    path: '/catalog',
+    tag: 'Store',
+    summary: '한 매장이 취급하는 상품 목록 (store_products + 매장 추가본, 옵션 A)',
+    query: storeByIdQuerySchema,
+    handler: storeCtrl.getStoreCatalog,
+});

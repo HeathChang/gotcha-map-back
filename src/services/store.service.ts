@@ -288,3 +288,90 @@ export async function getStoreGachaList(productId: string) {
         })),
     ];
 }
+
+// 한 매장이 취급하는 상품 목록 (소비자 매장 상세용). gotcha-map-policy §5 옵션 A:
+// 카탈로그(store_products⋈products) + 매장 추가본(store_product_overrides)을 함께 반환한다.
+// 응답은 소비자 product 카드와 호환되도록 minPrice/maxPrice = 매장 가격으로 채운다.
+export async function getStoreCatalog(storeId: string) {
+    await getStore(storeId); // 존재 검증 (없으면 STORE_NOT_FOUND)
+
+    const catalogSql = `
+        SELECT p.product_id, p.product_name, p.product_manufacturer, p.product_info,
+               p.category, p.image_url, p.is_new, p.is_popular, p.gender_target,
+               sp.price, sp.stock
+        FROM store_products sp
+        JOIN products p ON p.product_id = sp.product_id
+        WHERE sp.store_id = ?
+        ORDER BY sp.updated_at DESC
+    `;
+    const overrideSql = `
+        SELECT override_id, product_id, product_name, product_info, image_url, price, stock
+        FROM store_product_overrides
+        WHERE store_id = ?
+        ORDER BY updated_at DESC
+    `;
+
+    interface CatalogJoinRow {
+        product_id: string;
+        product_name: string;
+        product_manufacturer: string | null;
+        product_info: string | null;
+        category: string | null;
+        image_url: string | null;
+        is_new: boolean;
+        is_popular: boolean;
+        gender_target: 'M' | 'F' | 'ALL';
+        price: number;
+        stock: number | null;
+    }
+    interface OverrideCardRow {
+        override_id: string;
+        product_id: string | null;
+        product_name: string;
+        product_info: string | null;
+        image_url: string | null;
+        price: number;
+        stock: number | null;
+    }
+
+    const [catalogRows, overrideRows] = await Promise.all([
+        query<CatalogJoinRow[]>(catalogSql, [storeId]),
+        query<OverrideCardRow[]>(overrideSql, [storeId]),
+    ]);
+
+    const catalog = catalogRows.map((r) => ({
+        productId: r.product_id,
+        productName: r.product_name,
+        productManufacturer: r.product_manufacturer,
+        productInfo: r.product_info,
+        category: r.category,
+        imageUrl: r.image_url,
+        isNew: Boolean(r.is_new),
+        isPopular: Boolean(r.is_popular),
+        genderTarget: r.gender_target,
+        minPrice: r.price,
+        maxPrice: r.price,
+        price: r.price,
+        stock: r.stock,
+        source: 'catalog' as const,
+    }));
+    const overrides = overrideRows.map((r) => ({
+        // productId 가 null(매장 신규 상품)이면 override_id 를 카드 키로 사용.
+        productId: r.product_id ?? r.override_id,
+        productName: r.product_name,
+        productManufacturer: null,
+        productInfo: r.product_info,
+        category: null,
+        imageUrl: r.image_url,
+        isNew: false,
+        isPopular: false,
+        genderTarget: 'ALL' as const,
+        minPrice: r.price,
+        maxPrice: r.price,
+        price: r.price,
+        stock: r.stock,
+        source: 'store' as const,
+    }));
+
+    return [...catalog, ...overrides];
+}

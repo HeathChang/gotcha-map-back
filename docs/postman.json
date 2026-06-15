@@ -2895,6 +2895,43 @@
           "response": []
         },
         {
+          "name": "GET /api/v1/store/catalog — 한 매장이 취급하는 상품 목록 (store_products + 매장 추가본, 옵션 A)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/store/catalog",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "store",
+                "catalog"
+              ],
+              "query": [
+                {
+                  "key": "storeId",
+                  "value": "sample-id"
+                }
+              ]
+            },
+            "description": "한 매장이 취급하는 상품 목록 (store_products + 매장 추가본, 옵션 A)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "POST /api/v1/store/nearby — 주변 매장 조회 (위경도 + 반경 km)",
           "request": {
             "method": "POST",
