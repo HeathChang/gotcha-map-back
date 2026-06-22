@@ -52,7 +52,11 @@ export const update = asyncHandler(async (req: Request, res: Response) => {
     if (!storeId) {
         throw new ValidationError('storeId 가 필요합니다.', 'MISSING_STORE_ID');
     }
-    const input = req.body as AdminUpdateStoreInput;
+    const input = { ...(req.body as AdminUpdateStoreInput) };
+    // 평점(rating)은 운영 큐레이션 값 — member(점주)가 자기 매장 평점을 직접 올리지 못하게 서버에서 차단.
+    if ((req as AdminAuthRequest).user.role === 'member') {
+        delete input.rating;
+    }
     const store = await updateStore(storeId, input, actorOf(req));
     success(res, store, '매장이 수정되었습니다.');
 });

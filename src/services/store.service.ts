@@ -109,11 +109,12 @@ export async function listStoresForAdmin(params: { q?: string; page: number; lim
         args.push(kw, kw);
     }
 
-    const countRows = await query<Array<{ total: number }>>(
+    const countRows = await query<Array<{ total: bigint | number }>>(
         `SELECT COUNT(*) AS total FROM stores ${where}`,
         args,
     );
-    const total = countRows[0]?.total ?? 0;
+    // MariaDB COUNT(*) 는 BigInt 를 반환 — Number 로 캐스팅하지 않으면 Math.ceil(BigInt/number) 가 TypeError.
+    const total = Number(countRows[0]?.total ?? 0);
 
     const rows = await query<StoreRow[]>(
         `SELECT ${STORE_COLUMNS} FROM stores ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
