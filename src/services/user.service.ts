@@ -129,12 +129,21 @@ export async function updateUser(
     userId: string,
     data: { email?: string; nickname?: string; gender?: string; profileImageUrl?: string },
 ) {
-    const result = await query<{ affectedRows: number }>(
-        `UPDATE users SET email = COALESCE(?, email), nickname = COALESCE(?, nickname),
-         gender = COALESCE(?, gender), profile_image_url = COALESCE(?, profile_image_url)
-         WHERE user_id = ? AND user_status = 1`,
-        [data.email, data.nickname, data.gender, data.profileImageUrl, userId],
-    );
+    let result: { affectedRows: number };
+    try {
+        result = await query<{ affectedRows: number }>(
+            `UPDATE users SET email = COALESCE(?, email), nickname = COALESCE(?, nickname),
+             gender = COALESCE(?, gender), profile_image_url = COALESCE(?, profile_image_url)
+             WHERE user_id = ? AND user_status = 1`,
+            [data.email, data.nickname, data.gender, data.profileImageUrl, userId],
+        );
+    } catch (err) {
+        // email 은 UNIQUE — 다른 회원 이메일로 변경 시도 시 ER_DUP_ENTRY. signup 과 동일하게 409 로 변환(500 방지).
+        if ((err as { code?: string }).code === 'ER_DUP_ENTRY') {
+            throw new ConflictError('이미 사용 중인 이메일입니다.', 'EMAIL_ALREADY_EXISTS');
+        }
+        throw err;
+    }
     if (Number(result.affectedRows) === 0) {
         throw new NotFoundError('사용자를 찾을 수 없습니다.', 'USER_NOT_FOUND');
     }

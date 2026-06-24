@@ -5,8 +5,8 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { NearbyStoresInput } from '../validators/store.schema';
 
 export const getNearStoreList = asyncHandler(async (req: Request, res: Response) => {
-    const { lat, lon, radiusKm } = req.body as NearbyStoresInput;
-    const stores = await storeService.getNearStoreList(lat, lon, radiusKm);
+    const { lat, lon, radiusKm, limit } = req.body as NearbyStoresInput;
+    const stores = await storeService.getNearStoreList(lat, lon, radiusKm, limit);
     success(res, stores);
 });
 

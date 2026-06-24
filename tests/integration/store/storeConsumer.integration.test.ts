@@ -9,7 +9,7 @@ jest.mock('../../../src/config/database', () => ({
 }));
 
 import { query } from '../../../src/config/database';
-import { getStoreCatalog, getStoreGachaList } from '../../../src/services/store.service';
+import { getNearStoreList, getStoreCatalog, getStoreGachaList } from '../../../src/services/store.service';
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
 
@@ -23,18 +23,45 @@ const storeRow = (over: Partial<Record<string, unknown>> = {}) => ({
 beforeEach(() => mockQuery.mockReset());
 
 describe('getStoreGachaList — 가격 비교 옵션 A 병합', () => {
-    it('카탈로그(원본) 먼저, 매장 오버라이드(추가본) 뒤 + source 플래그', async () => {
+    it('가격 오름차순 통합 정렬 — 최저가가 override(추가본)여도 최상단 + source 플래그', async () => {
         mockQuery
-            .mockResolvedValueOnce([storeRow({ price: 5000, stock: 3 })] as never)            // catalog
-            .mockResolvedValueOnce([storeRow({ store_id: 's2', price: 6000, stock: 1 })] as never); // override
+            .mockResolvedValueOnce([storeRow({ store_id: 's1', price: 7000, stock: 3 })] as never)  // catalog(비쌈)
+            .mockResolvedValueOnce([storeRow({ store_id: 's2', price: 5000, stock: 1 })] as never); // override(최저가)
 
         const list = (await getStoreGachaList('p1')) as Array<{ source: string; price: number }>;
 
         expect(list).toHaveLength(2);
-        expect(list[0].source).toBe('catalog');
+        // 구버전(단순 concat)은 catalog 7000 을 먼저 둬 깨졌다. 통합 정렬이면 최저가 override 가 최상단.
+        expect(list[0].source).toBe('store');
         expect(list[0].price).toBe(5000);
-        expect(list[1].source).toBe('store');
-        expect(list[1].price).toBe(6000);
+        expect(list[1].source).toBe('catalog');
+        expect(list[1].price).toBe(7000);
+    });
+
+    it('동일 가격이면 안정 정렬로 catalog(원본)을 store(추가본)보다 앞에 둔다', async () => {
+        mockQuery
+            .mockResolvedValueOnce([storeRow({ store_id: 's1', price: 5000, stock: 3 })] as never)  // catalog
+            .mockResolvedValueOnce([storeRow({ store_id: 's2', price: 5000, stock: 1 })] as never); // override(동가)
+
+        const list = (await getStoreGachaList('p1')) as Array<{ source: string; price: number }>;
+
+        expect(list.map((x) => x.source)).toEqual(['catalog', 'store']);
+    });
+});
+
+describe('getNearStoreList — 결과 상한(limit)', () => {
+    it('limit 지정 시 SQL LIMIT 파라미터로 전달', async () => {
+        mockQuery.mockResolvedValueOnce([storeRow({ distance: 1.2 })] as never);
+        await getNearStoreList(37.5, 127.0, 5, 200);
+        const [sql, args] = mockQuery.mock.calls[0];
+        expect(sql).toMatch(/LIMIT \?/);
+        expect(args).toEqual([37.5, 127.0, 37.5, 5, 200]);
+    });
+
+    it('limit 미지정 시 기본값 100 적용', async () => {
+        mockQuery.mockResolvedValueOnce([] as never);
+        await getNearStoreList(37.5, 127.0, 5);
+        expect(mockQuery.mock.calls[0][1]).toEqual([37.5, 127.0, 37.5, 5, 100]);
     });
 });
 

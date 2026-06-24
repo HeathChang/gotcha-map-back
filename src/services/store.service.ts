@@ -41,7 +41,16 @@ function toStoreResponse(row: StoreRow): StoreResponse {
     };
 }
 
-export async function getNearStoreList(lat: number, lon: number, radiusKm: number) {
+// 주변 매장 LIMIT 기본값 — 밀집 지역서 50 하드코딩이 매장을 누락하던 문제 완화.
+// 반경(radiusKm)이 결과를 1차로 한정하며, 요청에서 limit 로 덮어쓸 수 있다(schema 가 상한 검증).
+const DEFAULT_NEARBY_LIMIT = 100;
+
+export async function getNearStoreList(
+    lat: number,
+    lon: number,
+    radiusKm: number,
+    limit: number = DEFAULT_NEARBY_LIMIT,
+) {
     const sql = `
         SELECT ${STORE_COLUMNS},
             (6371 * ACOS(
@@ -52,11 +61,11 @@ export async function getNearStoreList(lat: number, lon: number, radiusKm: numbe
         FROM stores
         HAVING distance <= ?
         ORDER BY distance ASC
-        LIMIT 50
+        LIMIT ?
     `;
     const rows = await query<Array<StoreRow & { distance: number }>>(
         sql,
-        [lat, lon, lat, radiusKm],
+        [lat, lon, lat, radiusKm, limit],
     );
     return rows.map((row) => ({ ...toStoreResponse(row), distance: row.distance }));
 }
@@ -250,7 +259,7 @@ export async function deleteStore(storeId: string, actor: AuditActor) {
 
 export async function getStoreGachaList(productId: string) {
     // gotcha-map-policy §5 (옵션 A): 원본(카탈로그 store_products) + 매장 추가본(store_product_overrides)을
-    // 함께 노출한다. 원본 먼저, 매장 추가본을 뒤에 둔다. source 로 프론트가 구분한다.
+    // 함께 노출한다. source 로 프론트가 구분하되, "가격 비교"이므로 전체 최저가가 최상단에 오도록 통합 정렬한다.
     const catalogSql = `
         SELECT s.store_id, s.name, s.address, s.lat, s.lon, s.phone, s.description,
                s.image_url, s.opening_hours, s.rating, s.created_at, s.updated_at,
@@ -274,7 +283,7 @@ export async function getStoreGachaList(productId: string) {
         query<Array<StoreRow & { price: number; stock: number | null }>>(overrideSql, [productId]),
     ]);
 
-    return [
+    const combined = [
         ...catalogRows.map((row) => ({
             ...toStoreResponse(row),
             price: row.price,
@@ -288,6 +297,15 @@ export async function getStoreGachaList(productId: string) {
             source: 'store' as const,
         })),
     ];
+
+    // 전체 최저가가 최상단에 오도록 source 구분 없이 가격 오름차순 통합 정렬.
+    // V8 sort 는 안정 정렬 → 동일 가격이면 위 concat 순서(catalog 먼저)를 유지한다.
+    // price 가 null 인 행은 맨 뒤로 보낸다.
+    combined.sort(
+        (a, b) =>
+            (a.price ?? Number.POSITIVE_INFINITY) - (b.price ?? Number.POSITIVE_INFINITY),
+    );
+    return combined;
 }
 
 // 한 매장이 취급하는 상품 목록 (소비자 매장 상세용). gotcha-map-policy §5 옵션 A:
