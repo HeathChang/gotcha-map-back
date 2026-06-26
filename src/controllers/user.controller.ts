@@ -55,6 +55,13 @@ export const changePassword = asyncHandler(async (req: AuthRequest, res: Respons
     success(res, null, '비밀번호가 변경되었습니다.');
 });
 
+export const withdrawUser = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const userId = req.user?.userId;
+    if (!userId) throw new AuthenticationError('인증이 필요합니다.', 'UNAUTHENTICATED');
+    await userService.withdrawUser(userId);
+    success(res, null, '회원탈퇴가 완료되었습니다.');
+});
+
 export const requestPasswordReset = asyncHandler(async (req: Request, res: Response) => {
     const { email } = req.body as RequestPasswordResetInput;
     await userService.requestPasswordReset(email);

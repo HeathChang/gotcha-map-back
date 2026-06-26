@@ -125,6 +125,29 @@ export async function getUser(userId: string) {
     return toUserResponse(row);
 }
 
+/**
+ * 회원탈퇴 — soft delete. 실제 행은 보존하고 user_status 를 -1(탈퇴)로 바꾼다.
+ * login/getUser 가 user_status=1 만 통과시키므로 탈퇴 후 로그인·조회가 자동 차단된다.
+ * 보유 refresh 토큰을 전부 무효화해 재로그인 경로를 끊는다. (users·tokens 를 트랜잭션으로 원자 처리)
+ * ※ 이메일은 UNIQUE 라 동일 이메일 재가입은 막힌다(정책상 보류 — 추후 결정).
+ */
+export async function withdrawUser(userId: string) {
+    await withTransaction(async (conn) => {
+        const result = (await conn.query(
+            `UPDATE users SET user_status = -1 WHERE user_id = ? AND user_status = 1`,
+            [userId],
+        )) as { affectedRows: number };
+        if (Number(result.affectedRows) === 0) {
+            throw new NotFoundError('사용자를 찾을 수 없습니다.', 'USER_NOT_FOUND');
+        }
+        await conn.query(
+            `UPDATE refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL`,
+            [userId],
+        );
+    });
+    logger.warn('user.withdrawn', { userId });
+}
+
 export async function updateUser(
     userId: string,
     data: { email?: string; nickname?: string; gender?: string; profileImageUrl?: string },

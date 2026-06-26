@@ -95,6 +95,16 @@ defineRoute(userRouter, BASE, {
     handler: userCtrl.changePassword,
 });
 
+// 회원탈퇴 — soft delete(user_status=-1). 본인만(auth). FE 호환 위해 POST 사용(body 없음).
+defineRoute(userRouter, BASE, {
+    method: 'post',
+    path: '/users/withdraw',
+    tag: 'User',
+    summary: '회원탈퇴 (soft-delete: user_status=-1, 보유 refresh 토큰 전체 무효화)',
+    auth: true,
+    handler: userCtrl.withdrawUser,
+});
+
 // 비밀번호 재설정: 2단계 토큰 흐름 (auth.md)
 defineRoute(userRouter, BASE, {
     method: 'post',
