@@ -26,11 +26,21 @@ function getRefreshFromRequest(req: Request): string {
 function decodeAccessForRefresh(req: Request): JwtPayload {
     // Refresh 시점에 access 토큰은 만료되었을 수 있으므로 verify가 아닌 decode + 만료 무시.
     // 신원은 DB의 refresh_token 레코드(user_id) 와 교차 확인되므로 안전하다.
+    // ⚠️ jwt.decode 는 iat/exp 등 등록 클레임까지 돌려주므로, 그대로 넘기면 rotateRefresh →
+    //    signAccessToken 의 jwt.sign(expiresIn) 이 "payload already has exp" 로 500 을 던진다.
+    //    도메인 신원 필드만 추려 깨끗한 payload 로 반환한다.
     const header = req.headers.authorization;
     if (header?.startsWith('Bearer ')) {
         const decoded = jwt.decode(header.slice(7));
         if (decoded && typeof decoded === 'object' && 'userId' in decoded && 'email' in decoded) {
-            return decoded as JwtPayload;
+            const d = decoded as JwtPayload;
+            return {
+                userId: d.userId,
+                email: d.email,
+                ...(d.kind !== undefined ? { kind: d.kind } : {}),
+                ...(d.role !== undefined ? { role: d.role } : {}),
+                ...(d.storeId !== undefined ? { storeId: d.storeId } : {}),
+            };
         }
     }
     const body = (req.body as { userId?: string; email?: string }) ?? {};
