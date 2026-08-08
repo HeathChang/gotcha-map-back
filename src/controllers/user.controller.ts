@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import * as userService from '../services/user.service';
 import { AuthRequest } from '../types';
-import { AuthenticationError } from '../utils/errors';
+import { AuthenticationError, AuthorizationError } from '../utils/errors';
 import { success } from '../utils/response';
 import { asyncHandler } from '../utils/asyncHandler';
 import { setRefreshCookie } from '../utils/cookies';
@@ -34,8 +34,14 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     success(res, result);
 });
 
-export const getUser = asyncHandler(async (req: Request, res: Response) => {
+export const getUser = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const authUserId = req.user?.userId;
+    if (!authUserId) throw new AuthenticationError('인증이 필요합니다.', 'UNAUTHENTICATED');
     const { userId } = req.query as { userId: string };
+    // H1: 무인증/타인 PII(이메일 평문) 노출 방지 — 본인 정보만 조회 허용.
+    if (userId !== authUserId) {
+        throw new AuthorizationError('본인 정보만 조회할 수 있습니다.', 'FORBIDDEN');
+    }
     const user = await userService.getUser(userId);
     success(res, user);
 });

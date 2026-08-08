@@ -48,7 +48,10 @@ defineRoute(userRouter, BASE, {
     method: 'get',
     path: '/users',
     tag: 'User',
-    summary: '사용자 단건 조회 (userId 쿼리)',
+    summary: '본인 정보 조회 (userId 쿼리 — 인증 필요, 본인만)',
+    // H1: 인증 없이 userId 만으로 임의 회원의 이메일(평문) 등 PII 가 노출되던 문제.
+    // 인증을 강제하고, 컨트롤러에서 본인(userId===req.user.userId)만 허용한다.
+    auth: true,
     query: getUserQuerySchema,
     handler: userCtrl.getUser,
 });
