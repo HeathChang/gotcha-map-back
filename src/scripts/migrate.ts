@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import pool from '../config/database';
 import { logger } from '../utils/logger';
-import { parseMigrationFile, splitStatements } from './migrationUtils';
+import { isSeedMigration, parseMigrationFile, splitStatements } from './migrationUtils';
 
 const MIGRATIONS_DIR = path.resolve(__dirname, '../../sql/migrations');
 
@@ -72,7 +72,23 @@ async function main(): Promise<void> {
     await ensureMigrationTable();
     const [applied, all] = await Promise.all([loadAppliedVersions(), listMigrationFiles()]);
 
-    const pending = all.filter((m) => !applied.has(m.version));
+    let pending = all.filter((m) => !applied.has(m.version));
+
+    // H2: 시드성 마이그레이션(0006/0007/0009 등 `_seed_`)은 개발용 더미 데이터라
+    // 운영 DB에 유입되면 안 된다(가짜 매장·샘플 배너). 운영 배포 런북이 db:migrate 를
+    // 쓰므로, production 에서는 SEED_FORCE=true 가 아닌 한 시드 마이그레이션을 스킵한다.
+    // (seed.ts 의 assertSafeEnv 와 동일한 안전장치.)
+    if (process.env.NODE_ENV === 'production' && process.env.SEED_FORCE !== 'true') {
+        const skipped = pending.filter((m) => isSeedMigration(m.file));
+        if (skipped.length > 0) {
+            logger.warn('migration.seed_skipped_in_production', {
+                versions: skipped.map((m) => m.version),
+                files: skipped.map((m) => m.file),
+                hint: '개발용 시드는 운영에서 스킵됨. 강제하려면 SEED_FORCE=true.',
+            });
+            pending = pending.filter((m) => !isSeedMigration(m.file));
+        }
+    }
 
     if (pending.length === 0) {
         logger.info('migration.up_to_date', { totalApplied: applied.size });
