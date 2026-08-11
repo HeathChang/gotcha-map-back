@@ -9,6 +9,9 @@ const pool = mariadb.createPool({
     database: env.DB_NAME,
     connectionLimit: 10,
     acquireTimeout: 30000,
+    // H3: 한글/이모지 콘텐츠 손상 방지 — 연결도 utf8mb4 로 고정(테이블 charset 은 마이그레이션에서 명시).
+    charset: 'utf8mb4',
+    collation: 'utf8mb4_unicode_ci',
 });
 
 export async function getConnection(): Promise<mariadb.PoolConnection> {

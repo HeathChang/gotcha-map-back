@@ -21,4 +21,4 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     INDEX idx_refresh_user (user_id),
     INDEX idx_refresh_family (family_id),
     INDEX idx_refresh_expires (expires_at)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

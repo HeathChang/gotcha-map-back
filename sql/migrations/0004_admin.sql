@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS admin_users (
 
     UNIQUE KEY uk_admin_users_email (email),
     INDEX idx_admin_users_status (admin_status)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 어드민 쓰기 작업 감사 로그 (vision §3 성공기준: mutation 100% 기록)
 CREATE TABLE IF NOT EXISTS admin_audit_logs (
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS admin_audit_logs (
     INDEX idx_audit_admin (admin_id),
     INDEX idx_audit_target (target_type, target_id),
     INDEX idx_audit_created (created_at)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 문의 답변자 추적: inquiries 에 admin FK 추가
 ALTER TABLE inquiries

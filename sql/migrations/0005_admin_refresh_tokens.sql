@@ -22,4 +22,4 @@ CREATE TABLE IF NOT EXISTS admin_refresh_tokens (
     INDEX idx_admin_refresh_admin (admin_id),
     INDEX idx_admin_refresh_family (family_id),
     INDEX idx_admin_refresh_expires (expires_at)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

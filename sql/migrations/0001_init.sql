@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     INDEX idx_users_email (email)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS tags (
     tag_id        VARCHAR(36)  PRIMARY KEY DEFAULT (UUID()),
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS tags (
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     INDEX idx_tags_relation (relation_type)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS products (
     product_id          VARCHAR(36)    PRIMARY KEY DEFAULT (UUID()),
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS products (
     INDEX idx_products_popular (is_popular),
     INDEX idx_products_new (is_new),
     INDEX idx_products_gender (gender_target)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS product_images (
     id            VARCHAR(36)  PRIMARY KEY DEFAULT (UUID()),
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS product_images (
 
     FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE,
     INDEX idx_product_images_product (product_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS product_tags (
     id            VARCHAR(36)  PRIMARY KEY DEFAULT (UUID()),
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS product_tags (
     FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES tags(tag_id) ON DELETE CASCADE,
     UNIQUE KEY uk_product_tag (product_id, tag_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS stores (
     store_id      VARCHAR(36)    PRIMARY KEY DEFAULT (UUID()),
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS stores (
     updated_at    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     INDEX idx_stores_location (lat, lon)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS store_products (
     id            VARCHAR(36)  PRIMARY KEY DEFAULT (UUID()),
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS store_products (
     FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE,
     UNIQUE KEY uk_store_product (store_id, product_id),
     INDEX idx_store_products_product (product_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS bookmarks (
     bookmark_id   VARCHAR(36)  PRIMARY KEY DEFAULT (UUID()),
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS bookmarks (
     UNIQUE KEY uk_user_bookmark (user_id, target_id, type),
     INDEX idx_bookmarks_user (user_id),
     INDEX idx_bookmarks_type (type)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS announcements (
     announce_id   VARCHAR(36)  PRIMARY KEY DEFAULT (UUID()),
@@ -122,7 +122,7 @@ CREATE TABLE IF NOT EXISTS announcements (
     is_active     BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS inquiries (
     inquiry_id    VARCHAR(36)  PRIMARY KEY DEFAULT (UUID()),
@@ -140,4 +140,4 @@ CREATE TABLE IF NOT EXISTS inquiries (
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     INDEX idx_inquiries_user (user_id),
     INDEX idx_inquiries_status (status)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

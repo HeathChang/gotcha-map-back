@@ -24,4 +24,4 @@ CREATE TABLE IF NOT EXISTS store_product_overrides (
     FOREIGN KEY (created_by_admin_id) REFERENCES admin_users(admin_id) ON DELETE SET NULL,
     INDEX idx_spo_store (store_id),
     INDEX idx_spo_product (product_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
