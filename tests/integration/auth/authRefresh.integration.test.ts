@@ -1,16 +1,15 @@
 /**
- * B1 회귀 — POST /auth/refresh 의 Authorization(만료 access) 처리.
+ * C1 회귀 — POST /auth/refresh 는 client access(Authorization)의 클레임을 신뢰하지 않는다.
  *
- * 배경(B1):
- *  - 프론트가 refresh 시 Authorization 헤더도 body 신원도 안 보내 BE 가
- *    MISSING_IDENTITY_HINT(401) 로 거부 → access 만료(15m)마다 강제 로그아웃.
- *    → 프론트가 (만료됐을 수 있는) access 를 Authorization: Bearer 로 보내도록 수정.
- *  - 그러자 decodeAccessForRefresh 가 jwt.decode 의 전체 payload(iat/exp 포함)를 반환해
- *    rotateRefresh → signAccessToken 의 jwt.sign({expiresIn}) 이
- *    "payload already has an exp property" 로 500 을 던짐.
- *    → decodeAccessForRefresh 가 도메인 신원 필드만 추려 깨끗한 payload 를 반환하도록 수정.
+ * 배경(C1): (구)decodeAccessForRefresh 가 jwt.decode(서명 미검증)로 Bearer 의 role/kind 를
+ *   복사 → signAccessToken 이 그대로 서버서명 → adminAuth 가 수용 → 일반 유저가 자기계정을
+ *   admin 으로 자가승격할 수 있었다. 수정: rotateRefresh 가 refresh_token 레코드의 user_id 로
+ *   users 를 재조회해 신원(userId/email)을 재구성한다. 소비자 토큰은 role/kind 를 갖지 않는다.
  *
- * 이 테스트는 DB 만 모킹하고 signAccessToken(실제 jwt.sign)을 태워 위 500 을 방어한다.
+ * DB 만 모킹하고 signAccessToken(실제 jwt.sign)을 태워 발급 토큰의 클레임을 검증한다.
+ * query 호출 순서: ① refresh_tokens SELECT ② users SELECT(신원).
+ *
+ * B1 회귀(iat/exp 박힌 access 를 Bearer 로 받아도 500 없이 회전)도 함께 유지한다.
  */
 jest.mock('../../../src/config/database', () => ({
     query: jest.fn(),
@@ -58,21 +57,24 @@ function invoke(req: Partial<Request>): Promise<InvokeResult> {
     });
 }
 
-beforeEach(() => {
-    jest.clearAllMocks();
-    // rotateRefresh 의 SELECT → 유효한 refresh 레코드(user_id 일치·미사용·미철회·미만료).
-    mockQuery.mockResolvedValue([
-        {
-            token_id: 't1',
-            user_id: 'u1',
-            family_id: 'f1',
-            parent_id: null,
-            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-            used_at: null,
-            revoked_at: null,
-        },
-    ] as never);
-    // withTransaction 의 conn.query → UPDATE(affectedRows:1) → INSERT(ok).
+const REFRESH_ROW = {
+    token_id: 't1',
+    user_id: 'u1',
+    family_id: 'f1',
+    parent_id: null,
+    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    used_at: null,
+    revoked_at: null,
+};
+const ACTIVE_USER = { user_id: 'u1', email: 'u1@test.com' };
+
+// ① refresh_tokens SELECT → 유효 레코드, ② users SELECT(신원) → userRows.
+function mockDbSequence(userRows: unknown[]): void {
+    mockQuery.mockReset();
+    mockQuery
+        .mockResolvedValueOnce([REFRESH_ROW] as never)
+        .mockResolvedValueOnce(userRows as never);
+    mockWithTransaction.mockReset();
     mockWithTransaction.mockImplementation(
         async (cb: (c: { query: jest.Mock }) => Promise<unknown>) => {
             const connQuery = jest
@@ -82,43 +84,72 @@ beforeEach(() => {
             return cb({ query: connQuery });
         },
     );
-});
+}
 
-describe('POST /auth/refresh — B1 회귀', () => {
-    it('iat/exp 가 박힌 access 를 Bearer 로 받아도 500 없이 새 토큰을 회전 발급한다', async () => {
-        // 실제 로그인 access 와 동일하게 iat/exp 가 포함된 토큰.
-        const access = jwt.sign(
-            { userId: 'u1', email: 'u1@test.com' },
-            process.env.JWT_SECRET as string,
-            { expiresIn: '15m' },
-        );
-        const req = {
-            headers: { authorization: `Bearer ${access}` },
-            body: { refreshToken: 'r'.repeat(40) },
-            get: () => undefined,
-            ip: '127.0.0.1',
-        } as unknown as Request;
+function requestWith(headers: Record<string, string>): Request {
+    return {
+        headers,
+        body: { refreshToken: 'r'.repeat(40) },
+        get: () => undefined,
+        ip: '127.0.0.1',
+    } as unknown as Request;
+}
 
-        const { jsonBody, nextErr, status } = await invoke(req);
+describe('POST /auth/refresh — C1 신원 재구성 + B1 회귀', () => {
+    it('신원 힌트(Authorization/body)가 없어도 refresh_token 레코드로 회전 성공', async () => {
+        mockDbSequence([ACTIVE_USER]);
+        const { jsonBody, nextErr, status } = await invoke(requestWith({}));
 
-        // 수정 전에는 "payload already has an exp property" 로 next(err) → 500.
         expect(nextErr).toBeUndefined();
         expect(status).toBe(200);
         expect(jsonBody?.data?.accessToken).toBeTruthy();
         expect(jsonBody?.data?.refreshToken).toBeTruthy();
     });
 
-    it('Authorization 도 body 신원도 없으면 MISSING_IDENTITY_HINT 로 거부(계약 유지)', async () => {
-        const req = {
-            headers: {},
-            body: { refreshToken: 'r'.repeat(40) },
-            get: () => undefined,
-            ip: '127.0.0.1',
-        } as unknown as Request;
+    it('iat/exp 가 박힌 access 를 Bearer 로 받아도 500 없이 회전한다 (B1 회귀)', async () => {
+        mockDbSequence([ACTIVE_USER]);
+        const access = jwt.sign(
+            { userId: 'u1', email: 'u1@test.com' },
+            process.env.JWT_SECRET as string,
+            { expiresIn: '15m' },
+        );
+        const { jsonBody, nextErr, status } = await invoke(
+            requestWith({ authorization: `Bearer ${access}` }),
+        );
 
-        const { nextErr, jsonBody } = await invoke(req);
+        expect(nextErr).toBeUndefined();
+        expect(status).toBe(200);
+        expect(jsonBody?.data?.accessToken).toBeTruthy();
+    });
+
+    it('위조 Bearer(kind:admin,role:admin)를 보내도 발급 토큰은 소비자 토큰(role/kind 없음)', async () => {
+        mockDbSequence([ACTIVE_USER]);
+        // 서명은 무의미 — 서버는 이 토큰을 decode 조차 하지 않는다.
+        const forged = jwt.sign(
+            { userId: 'u1', email: 'u1@test.com', kind: 'admin', role: 'admin' },
+            'attacker-secret',
+            { expiresIn: '15m' },
+        );
+        const { jsonBody, status } = await invoke(
+            requestWith({ authorization: `Bearer ${forged}` }),
+        );
+
+        expect(status).toBe(200);
+        const decoded = jwt.decode(jsonBody?.data?.accessToken as string) as {
+            userId?: string;
+            kind?: string;
+            role?: string;
+        } | null;
+        expect(decoded?.userId).toBe('u1');
+        expect(decoded?.kind).toBeUndefined();
+        expect(decoded?.role).toBeUndefined();
+    });
+
+    it('비활성/탈퇴 계정(users status≠1 → 0건)이면 INVALID_REFRESH_TOKEN 으로 거부', async () => {
+        mockDbSequence([]); // 신원 조회 0건
+        const { nextErr, jsonBody } = await invoke(requestWith({}));
 
         expect(jsonBody).toBeUndefined();
-        expect((nextErr as { code?: string })?.code).toBe('MISSING_IDENTITY_HINT');
+        expect((nextErr as { code?: string })?.code).toBe('INVALID_REFRESH_TOKEN');
     });
 });

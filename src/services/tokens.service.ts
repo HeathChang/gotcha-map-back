@@ -112,10 +112,12 @@ async function revokeFamily(familyId: string, reason: string): Promise<void> {
  *  - 토큰 해시 매칭 + 만료/사용/철회 검사.
  *  - 재사용(동일 토큰 두 번 사용)이 감지되면 family 전체를 즉시 무효화한다.
  *  - 정상 회전 시 직전 토큰을 used 처리하고 새 토큰을 발급한다.
+ *  - 신원(userId/email)은 refresh_token 레코드의 user_id 로 DB 를 재조회해 재구성한다.
+ *    client access 토큰의 클레임(role/kind)은 신뢰하지 않는다 — 위조 클레임으로 admin
+ *    토큰을 발급받는 권한상승(C1)을 차단한다. 소비자 토큰은 role/kind 를 갖지 않는다.
  */
 export async function rotateRefresh(
     rawRefresh: string,
-    payload: JwtPayload,
     ctx: RefreshContext = {},
 ): Promise<IssuedTokens> {
     const tokenHash = hashToken(rawRefresh);
@@ -126,7 +128,7 @@ export async function rotateRefresh(
     );
     const record = rows[0];
 
-    if (!record || record.user_id !== payload.userId) {
+    if (!record) {
         throw new AuthenticationError('유효하지 않은 토큰입니다.', 'INVALID_REFRESH_TOKEN');
     }
 
@@ -146,6 +148,20 @@ export async function rotateRefresh(
     if (new Date(record.expires_at).getTime() < Date.now()) {
         throw new AuthenticationError('만료된 토큰입니다.', 'EXPIRED_REFRESH_TOKEN');
     }
+
+    // 신원은 refresh_token 레코드의 user_id 로 DB 를 재조회해 재구성한다.
+    // client 가 Authorization 으로 보낸 access 는 서명 미검증이라 신뢰하지 않는다 —
+    // 위조 role/kind 로 admin 토큰을 발급받는 권한상승(C1)을 차단. 소비자는 role/kind 없음.
+    const identityRows = await query<Array<{ user_id: string; email: string }>>(
+        'SELECT user_id, email FROM users WHERE user_id = ? AND user_status = 1',
+        [record.user_id],
+    );
+    const identity = identityRows[0];
+    if (!identity) {
+        // 비활성/탈퇴 계정은 회전을 거부한다 (H1 refresh 벡터 동시 차단).
+        throw new AuthenticationError('유효하지 않은 토큰입니다.', 'INVALID_REFRESH_TOKEN');
+    }
+    const payload: JwtPayload = { userId: identity.user_id, email: identity.email };
 
     const access = signAccessToken(payload);
     const newRaw = generateRawRefresh();
@@ -173,7 +189,7 @@ export async function rotateRefresh(
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 tokenId,
-                payload.userId,
+                record.user_id,
                 hashToken(newRaw),
                 record.family_id,
                 record.token_id,

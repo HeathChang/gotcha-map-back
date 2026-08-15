@@ -11,7 +11,7 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { query, withTransaction } from '../config/database';
 import { env } from '../config/env';
-import { JwtPayload } from '../types';
+import { AdminRole, JwtPayload } from '../types';
 import { AuthenticationError } from '../utils/errors';
 import { logger } from '../utils/logger';
 
@@ -129,16 +129,8 @@ async function revokeAdminFamily(
 
 export async function rotateAdminRefresh(
     rawRefresh: string,
-    payload: JwtPayload,
     ctx: RefreshContext = {},
 ): Promise<AdminIssuedTokens> {
-    if (payload.kind !== 'admin') {
-        throw new AuthenticationError(
-            '어드민 토큰이 아닙니다.',
-            'ADMIN_TOKEN_REQUIRED',
-        );
-    }
-
     const tokenHash = hashToken(rawRefresh);
     const rows = await query<AdminRefreshRow[]>(
         `SELECT token_id, admin_id, family_id, parent_id, expires_at, used_at, revoked_at
@@ -147,7 +139,7 @@ export async function rotateAdminRefresh(
     );
     const record = rows[0];
 
-    if (!record || record.admin_id !== payload.userId) {
+    if (!record) {
         throw new AuthenticationError(
             '유효하지 않은 토큰입니다.',
             'INVALID_REFRESH_TOKEN',
@@ -172,6 +164,34 @@ export async function rotateAdminRefresh(
     if (new Date(record.expires_at).getTime() < Date.now()) {
         throw new AuthenticationError('만료된 토큰입니다.', 'EXPIRED_REFRESH_TOKEN');
     }
+
+    // 신원(role/storeId 포함)은 admin_refresh_tokens 레코드의 admin_id 로 admin_users 를
+    // 재조회해 재구성한다. client access(Authorization) 의 role/kind 는 신뢰하지 않는다 —
+    // 위조 role 로 상위 권한을 발급받는 권한상승(C1)을 차단한다.
+    const identityRows = await query<
+        Array<{
+            admin_id: string;
+            email: string;
+            role: AdminRole;
+            store_id: string | null;
+        }>
+    >(
+        `SELECT admin_id, email, role, store_id
+         FROM admin_users WHERE admin_id = ? AND admin_status = 1`,
+        [record.admin_id],
+    );
+    const identity = identityRows[0];
+    if (!identity) {
+        // 비활성 관리자는 회전을 거부한다 (H1 refresh 벡터 동시 차단).
+        throw new AuthenticationError('유효하지 않은 토큰입니다.', 'INVALID_REFRESH_TOKEN');
+    }
+    const payload: JwtPayload = {
+        userId: identity.admin_id,
+        email: identity.email,
+        kind: 'admin',
+        role: identity.role,
+        storeId: identity.store_id,
+    };
 
     const access = signAdminAccessToken(payload);
     const newRaw = generateRawRefresh();
@@ -198,7 +218,7 @@ export async function rotateAdminRefresh(
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 tokenId,
-                payload.userId,
+                record.admin_id,
                 hashToken(newRaw),
                 record.family_id,
                 record.token_id,
