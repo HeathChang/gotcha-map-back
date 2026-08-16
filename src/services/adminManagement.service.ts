@@ -165,6 +165,15 @@ export async function updateAdminStatus(
     if (before.status === status) return before;
 
     await query('UPDATE admin_users SET admin_status = ? WHERE admin_id = ?', [status, adminId]);
+
+    // H1: 비활성(상태≠1)으로 전환하면 해당 어드민의 refresh 토큰을 전부 철회한다(퇴사/침해 즉시 차단).
+    if (status !== 1) {
+        await query(
+            `UPDATE admin_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE admin_id = ? AND revoked_at IS NULL`,
+            [adminId],
+        );
+    }
+
     const updated = await getManagedOrThrow(adminId);
 
     await writeAuditLog({

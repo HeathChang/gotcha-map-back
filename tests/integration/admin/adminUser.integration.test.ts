@@ -77,11 +77,12 @@ describe('GET /api/v1/admin/users — 접근 권한 + PII 노출', () => {
 });
 
 describe('PATCH /api/v1/admin/users/:userId/status', () => {
-    it('상태 변경 → 감사 로그 user.status 기록 + 풀 노출 응답', async () => {
+    it('상태 변경(비활성) → refresh 토큰 철회 + 감사 로그 user.status 기록 + 풀 노출 응답', async () => {
         mockQuery
-            .mockResolvedValueOnce([FIXTURE_USER] as never)                // before
-            .mockResolvedValueOnce({ affectedRows: 1 } as never)           // UPDATE
-            .mockResolvedValueOnce([{ ...FIXTURE_USER, user_status: 0 }] as never) // after
+            .mockResolvedValueOnce([FIXTURE_USER] as never)                // before getAdminUser
+            .mockResolvedValueOnce({ affectedRows: 1 } as never)           // UPDATE users
+            .mockResolvedValueOnce({ affectedRows: 2 } as never)           // H1: revoke refresh_tokens
+            .mockResolvedValueOnce([{ ...FIXTURE_USER, user_status: 0 }] as never) // after getAdminUser
             .mockResolvedValueOnce({ affectedRows: 1 } as never);          // audit
 
         const res = await request(app)
@@ -94,11 +95,37 @@ describe('PATCH /api/v1/admin/users/:userId/status', () => {
         // staff 도 admin 과 동일하게 이메일 풀 노출
         expect(res.body.data.email).toBe('alice@example.com');
 
-        const auditArgs = mockQuery.mock.calls[3][1] as unknown[];
+        // H1: 비활성(상태≠1) 전환 시 해당 회원 refresh 토큰 철회 쿼리가 발생해야 한다.
+        const revokeCall = mockQuery.mock.calls.find((c) =>
+            /refresh_tokens\s+SET\s+revoked_at/i.test(String(c[0])),
+        );
+        expect(revokeCall).toBeTruthy();
+        expect((revokeCall?.[1] as unknown[])?.[0]).toBe('u1');
+
+        const auditArgs = mockQuery.mock.calls[4][1] as unknown[];
         expect(auditArgs[2]).toBe('user.status');
         const diff = JSON.parse(auditArgs[5] as string);
         expect(diff.before.userStatus).toBe(1);
         expect(diff.after.userStatus).toBe(0);
+    });
+
+    it('H1: 재활성화(status=1)로의 변경은 refresh 토큰을 철회하지 않는다', async () => {
+        mockQuery
+            .mockResolvedValueOnce([{ ...FIXTURE_USER, user_status: 0 }] as never) // before (현재 비활성)
+            .mockResolvedValueOnce({ affectedRows: 1 } as never)                    // UPDATE users
+            .mockResolvedValueOnce([FIXTURE_USER] as never)                         // after (활성)
+            .mockResolvedValueOnce({ affectedRows: 1 } as never);                   // audit
+
+        const res = await request(app)
+            .patch('/api/v1/admin/users/u1/status')
+            .set('Authorization', `Bearer ${adminToken('admin')}`)
+            .send({ status: 1 });
+
+        expect(res.status).toBe(200);
+        const revokeCall = mockQuery.mock.calls.find((c) =>
+            /refresh_tokens\s+SET\s+revoked_at/i.test(String(c[0])),
+        );
+        expect(revokeCall).toBeUndefined();
     });
 
     it('동일 상태로의 변경은 no-op + 감사 미기록 (UPDATE 호출 안 함)', async () => {

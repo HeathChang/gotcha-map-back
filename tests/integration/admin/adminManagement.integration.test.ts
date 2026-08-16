@@ -83,3 +83,26 @@ describe('POST /api/v1/admin/admins', () => {
         expect(mockQuery).not.toHaveBeenCalled();
     });
 });
+
+describe('PATCH /api/v1/admin/admins/:adminId/status — H1 토큰 철회', () => {
+    it('비활성(status=0) 전환 시 해당 어드민 refresh 토큰 철회', async () => {
+        mockQuery
+            .mockResolvedValueOnce([MANAGED_ROW] as never)                          // before getManagedOrThrow
+            .mockResolvedValueOnce({ affectedRows: 1 } as never)                    // UPDATE admin_users
+            .mockResolvedValueOnce({ affectedRows: 1 } as never)                    // H1: revoke admin_refresh_tokens
+            .mockResolvedValueOnce([{ ...MANAGED_ROW, admin_status: 0 }] as never)  // after getManagedOrThrow
+            .mockResolvedValueOnce({ affectedRows: 1 } as never);                   // audit
+
+        const res = await request(app)
+            .patch('/api/v1/admin/admins/a1/status')
+            .set('Authorization', `Bearer ${adminToken('admin')}`)
+            .send({ status: 0 });
+
+        expect(res.status).toBe(200);
+        const revokeCall = mockQuery.mock.calls.find((c) =>
+            /admin_refresh_tokens\s+SET\s+revoked_at/i.test(String(c[0])),
+        );
+        expect(revokeCall).toBeTruthy();
+        expect((revokeCall?.[1] as unknown[])?.[0]).toBe('a1');
+    });
+});

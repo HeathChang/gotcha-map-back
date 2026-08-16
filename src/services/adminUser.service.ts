@@ -126,6 +126,17 @@ export async function updateUserStatus(
     if (Number(result.affectedRows) === 0) {
         throw new NotFoundError('회원을 찾을 수 없습니다.', 'USER_NOT_FOUND');
     }
+
+    // H1: 비활성/밴(상태≠1)으로 전환하면 해당 회원의 refresh 토큰을 전부 철회한다.
+    //     (C1 수정으로 rotate 가 이미 user_status=1 을 재확인하지만, 재활성화 시 옛 토큰 부활
+    //      방지 + 심층방어. 자가 탈퇴가 토큰을 철회하듯 운영자 밴도 즉시 세션을 끊는다.)
+    if (status !== 1) {
+        await query(
+            `UPDATE refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL`,
+            [userId],
+        );
+    }
+
     const updated = await getAdminUser(userId);
 
     await writeAuditLog({
