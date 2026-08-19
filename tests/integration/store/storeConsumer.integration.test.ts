@@ -93,3 +93,26 @@ describe('getStoreCatalog — 매장 취급 상품', () => {
         expect(list[1]).toMatchObject({ productId: 'o1', productName: '매장 한정 신상', source: 'store', minPrice: 9900 });
     });
 });
+
+describe('H5 — 소비자 매장 응답 숫자 정규화(DECIMAL 문자열 방지)', () => {
+    it('getNearStoreList: DECIMAL(lat/lon/rating)·계산 distance 를 number 로 반환', async () => {
+        // 실 mariadb 드라이버는 DECIMAL 을 문자열로 반환한다(mock 이 숫자면 버그가 가려짐).
+        mockQuery.mockResolvedValueOnce([
+            storeRow({ lat: '37.4979000', lon: '127.0276000', rating: '4.6', distance: '1.23' }),
+        ] as never);
+
+        const [store] = (await getNearStoreList(37.5, 127.0, 5)) as Array<{
+            lat: number;
+            lon: number;
+            rating: number;
+            distance: number;
+        }>;
+
+        expect(typeof store.lat).toBe('number');
+        expect(typeof store.lon).toBe('number');
+        expect(typeof store.rating).toBe('number');
+        expect(typeof store.distance).toBe('number');
+        expect(store.lat).toBeCloseTo(37.4979);
+        expect(store.rating).toBe(4.6);
+    });
+});

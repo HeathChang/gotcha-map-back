@@ -47,8 +47,9 @@ function toProductResponse(row: ProductRow): ProductResponse {
         maxPrice: row.max_price,
         imageUrl: row.image_url,
         viewCount: row.view_count,
-        isNew: row.is_new,
-        isPopular: row.is_popular,
+        // H5: is_new/is_popular 는 TINYINT(0/1) → 소비자 뱃지 로직(=== true)용으로 boolean 정규화.
+        isNew: Boolean(row.is_new),
+        isPopular: Boolean(row.is_popular),
         genderTarget: row.gender_target,
         createdAt: row.created_at,
         updatedAt: row.updated_at,

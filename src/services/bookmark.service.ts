@@ -76,9 +76,10 @@ export async function getStoreBookmarks(userId: string): Promise<StoreBookmarkRe
             name: row.name,
             address: row.address,
             imageUrl: row.image_url,
-            rating: row.rating,
-            lat: row.lat,
-            lon: row.lon,
+            // H5: stores DECIMAL(rating/lat/lon)은 드라이버가 문자열로 반환 → 숫자 정규화.
+            rating: Number(row.rating),
+            lat: Number(row.lat),
+            lon: Number(row.lon),
         },
     }));
 }

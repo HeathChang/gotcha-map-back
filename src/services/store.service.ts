@@ -29,13 +29,14 @@ function toStoreResponse(row: StoreRow): StoreResponse {
         storeId: row.store_id,
         name: row.name,
         address: row.address,
-        lat: row.lat,
-        lon: row.lon,
+        // H5: lat/lon/rating 은 DECIMAL 이라 드라이버가 문자열로 반환 → 지도 SDK/정렬용으로 숫자 정규화.
+        lat: Number(row.lat),
+        lon: Number(row.lon),
         phone: row.phone,
         description: row.description,
         imageUrl: row.image_url,
         openingHours: row.opening_hours,
-        rating: row.rating,
+        rating: Number(row.rating),
         createdAt: row.created_at,
         updatedAt: row.updated_at,
     };
@@ -67,7 +68,7 @@ export async function getNearStoreList(
         sql,
         [lat, lon, lat, radiusKm, limit],
     );
-    return rows.map((row) => ({ ...toStoreResponse(row), distance: row.distance }));
+    return rows.map((row) => ({ ...toStoreResponse(row), distance: Number(row.distance) }));
 }
 
 export async function getStore(storeId: string) {
