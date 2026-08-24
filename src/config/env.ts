@@ -42,6 +42,15 @@ export const envSchema = z.object({
     BCRYPT_ROUNDS: z.coerce.number().int().min(4).max(15).default(12),
 
     SERVICE_NAME: z.string().default('gachamap-api'),
+
+    // 메일 발송(SMTP) — 비밀번호 재설정 등. 미설정 시 발송은 no-op(부팅은 정상).
+    // 운영에서는 반드시 설정해야 비밀번호 재설정 메일이 실제로 나간다.
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().int().positive().default(587),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASS: z.string().optional(),
+    /** 발신 표기. 예: "가챠맵 <no-reply@example.com>" */
+    MAIL_FROM: z.string().default('가챠맵 <no-reply@gachamap.app>'),
 })
     // M1: 운영 배포 시 안전하지 않은 쿠키/CORS 기본값이 그대로 나가지 않도록 강제(부팅 실패).
     .superRefine((val, ctx) => {
