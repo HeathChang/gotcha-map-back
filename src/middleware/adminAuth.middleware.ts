@@ -29,7 +29,7 @@ export function adminAuthMiddleware(
     const token = header.slice(7);
     let decoded: JwtPayload;
     try {
-        decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+        decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] }) as JwtPayload;
     } catch {
         next(new AuthenticationError('유효하지 않은 토큰입니다.', 'INVALID_TOKEN'));
         return;

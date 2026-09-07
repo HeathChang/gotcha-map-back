@@ -189,7 +189,17 @@ export async function changePassword(userId: string, oldPassword: string, newPas
     }
 
     const hashed = await hashPassword(newPassword);
-    await query('UPDATE users SET password = ? WHERE user_id = ?', [hashed, userId]);
+    await withTransaction(async (conn) => {
+        await conn.query('UPDATE users SET password = ? WHERE user_id = ?', [hashed, userId]);
+        // X13: 비밀번호가 바뀌면 기존 세션(refresh 체인)을 전부 끊는다.
+        // 그러지 않으면 계정 침해 후 비번을 바꿔도 공격자의 refresh 가 최대 14일 살아남는다.
+        // (탈퇴·밴은 이미 철회하는데 비번 변경만 빠져 있던 비대칭을 맞춘다.)
+        await conn.query(
+            'UPDATE refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL',
+            [userId],
+        );
+    });
+    logger.info('password.changed.sessions_revoked', { userId });
 }
 
 /**
@@ -285,6 +295,11 @@ export async function confirmPasswordReset(token: string, newPassword: string): 
         await conn.query(
             'UPDATE users SET password = ? WHERE user_id = ? AND user_status = 1',
             [hashed, record.user_id],
+        );
+        // X13: 재설정은 "계정을 잃어버린 상황"의 복구 경로다 — 기존 세션을 반드시 끊는다.
+        await conn.query(
+            'UPDATE refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL',
+            [record.user_id],
         );
     });
 
