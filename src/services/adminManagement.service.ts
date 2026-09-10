@@ -7,6 +7,7 @@ import { query } from '../config/database';
 import { AdminRole } from '../types';
 import { ConflictError, NotFoundError } from '../utils/errors';
 import { hashPassword } from '../utils/password';
+import { insertOrConflict } from '../utils/dbErrors';
 import { writeAuditLog } from './admin.service';
 import { getStore } from './store.service';
 import type { AuditActor } from './adminTag.service';
@@ -137,10 +138,16 @@ export async function createAdmin(
     const adminId = idRows[0]?.id;
     if (!adminId) throw new Error('UUID 생성 실패');
 
-    await query(
-        `INSERT INTO admin_users (admin_id, email, password, name, role, store_id, admin_status)
-         VALUES (?, ?, ?, ?, ?, ?, 1)`,
-        [adminId, params.email, hashed, params.name, params.role, storeId],
+    // B2: 위 SELECT 와 이 INSERT 사이의 경쟁으로 UNIQUE(email) 가 걸릴 수 있다.
+    //     사전 검사와 동일한 409 로 응답한다(그대로 두면 500).
+    await insertOrConflict(
+        () =>
+            query(
+                `INSERT INTO admin_users (admin_id, email, password, name, role, store_id, admin_status)
+                 VALUES (?, ?, ?, ?, ?, ?, 1)`,
+                [adminId, params.email, hashed, params.name, params.role, storeId],
+            ),
+        { message: '이미 사용 중인 이메일입니다.', code: 'ADMIN_EMAIL_EXISTS' },
     );
     const created = await getManagedOrThrow(adminId);
 

@@ -4,6 +4,7 @@
  * 서비스는 모든 by-id 쿼리에 `AND store_id = ?` 를 붙여 교차-매장 접근을 2차 차단한다.
  */
 import { query } from '../config/database';
+import { insertOrConflict } from '../utils/dbErrors';
 import { ConflictError, NotFoundError } from '../utils/errors';
 import { writeAuditLog } from './admin.service';
 import { getStore } from './store.service';
@@ -111,9 +112,17 @@ export async function createStoreProduct(
     const id = idRows[0]?.id;
     if (!id) throw new Error('UUID 생성 실패');
 
-    await query(
-        'INSERT INTO store_products (id, store_id, product_id, price, stock) VALUES (?, ?, ?, ?, ?)',
-        [id, storeId, params.productId, params.price, params.stock ?? null],
+    // B2: 사전 dup 검사와 이 INSERT 사이의 경쟁으로 uk_store_product 가 걸릴 수 있다.
+    await insertOrConflict(
+        () =>
+            query(
+                'INSERT INTO store_products (id, store_id, product_id, price, stock) VALUES (?, ?, ?, ?, ?)',
+                [id, storeId, params.productId, params.price, params.stock ?? null],
+            ),
+        {
+            message: '이미 이 매장에 등록된 제품입니다. 수정으로 가격·재고를 변경하세요.',
+            code: 'STORE_PRODUCT_EXISTS',
+        },
     );
     const created = await getStoreProductOrThrow(storeId, id);
 
