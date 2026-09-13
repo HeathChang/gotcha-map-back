@@ -208,7 +208,8 @@ export async function answerAdminInquiry(params: {
             `UPDATE inquiries
              SET status = ?,
                  answer = ?,
-                 answered_at = CURRENT_TIMESTAMP,
+                 -- X6: 답변을 수정해도 최초 응답 시각을 보존한다(SLA 통계 왜곡 방지).
+                 answered_at = COALESCE(answered_at, CURRENT_TIMESTAMP),
                  answered_by_admin_id = ?
              WHERE inquiry_id = ?`,
             [params.status, params.answer, params.adminId, params.inquiryId],
