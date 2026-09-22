@@ -37,7 +37,9 @@ app.use(
         origin: (origin, cb) => {
             if (!origin) return cb(null, true);
             if (env.CORS_ORIGIN.includes(origin)) return cb(null, true);
-            return cb(new Error(`CORS blocked: ${origin}`));
+            // 허용 안 된 출처는 Error 로 넘기지 않는다 — errorMiddleware 가 500 INTERNAL_ERROR 로
+            // 응답하고 스택을 로그에 남겨, 스캐너가 훑기만 해도 에러 로그가 찬다. 헤더만 생략한다.
+            return cb(null, false);
         },
         credentials: true,
     }),

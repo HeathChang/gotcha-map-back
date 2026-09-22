@@ -236,17 +236,24 @@ export async function requestPasswordReset(email: string): Promise<void> {
         );
     });
 
-    // 이메일로 재설정 코드(=토큰 원문) 발송. SMTP 미설정 시 no-op(로컬/테스트), 실패해도 throw 안 함
-    // → 계정 존재 여부를 응답으로 노출하지 않는다는 원칙 유지.
-    const sent = await sendPasswordResetEmail(email, rawToken, RESET_TOKEN_TTL_MS / 60000);
-
-    logger.info('password_reset.token.issued', {
-        userId,
-        emailMasked: maskEmail(email),
-        expiresAt: expiresAt.toISOString(),
-        mailSent: sent,
-        // 평문 토큰은 운영 로그에 남기지 않는다. SMTP 미설정 개발환경에서만 로컬 테스트용으로 노출.
-        ...(env.NODE_ENV !== 'production' && !sent ? { devToken: rawToken } : {}),
+    // 이메일로 재설정 코드(=토큰 원문) 발송. SMTP 미설정 시 no-op(로컬/테스트), 실패해도 throw 안 함.
+    // 발송을 await 하면 "계정 있음"만 SMTP 왕복(수백 ms)만큼 늦게 응답해 타이밍으로 계정 존재가
+    // 새어나간다 → 응답과 분리하고 결과는 비동기로 로깅한다(sendMail 은 절대 throw 하지 않음).
+    void sendPasswordResetEmail(email, rawToken, RESET_TOKEN_TTL_MS / 60000).then((sent) => {
+        logger.info('password_reset.token.issued', {
+            userId,
+            emailMasked: maskEmail(email),
+            expiresAt: expiresAt.toISOString(),
+            mailSent: sent,
+            // 평문 토큰은 운영 로그에 남기지 않는다. SMTP 미설정 개발환경에서만 로컬 테스트용으로 노출.
+            ...(env.NODE_ENV !== 'production' && !sent ? { devToken: rawToken } : {}),
+        });
+    }).catch((err: unknown) => {
+        // mailer 는 throw 하지 않는 계약이지만, 깨져도 unhandledRejection 으로 새지 않게 막는다.
+        logger.error('password_reset.mail_dispatch_failed', {
+            userId,
+            error: err instanceof Error ? err.message : String(err),
+        });
     });
 }
 

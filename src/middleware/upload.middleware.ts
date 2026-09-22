@@ -1,13 +1,20 @@
+import fs from 'node:fs';
 import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+
+// uploads/ 는 gitignore 라 새 배포 환경엔 없다. multer 는 destination 이 함수 형태면
+// 디렉터리를 만들어 주지 않아 첫 업로드가 ENOENT 500 으로 실패한다 → 부팅 시 보장.
+// (Railway Volume 을 /app/uploads 에 마운트하면 이미 존재하므로 no-op.)
+const UPLOAD_DIR = 'uploads/';
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 // 이미지 업로드 공통 설정. 유저(/api/v1/images)·어드민(/api/v1/admin/images) 라우트가 공유.
 const ALLOWED_EXTS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']);
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 const storage = multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, 'uploads/'),
+    destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
     filename: (_req, file, cb) => {
         const ext = path.extname(file.originalname).toLowerCase();
         cb(null, `${uuidv4()}${ext}`);

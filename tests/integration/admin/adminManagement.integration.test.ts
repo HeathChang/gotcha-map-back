@@ -10,7 +10,7 @@ jest.mock('../../../src/config/database', () => ({
 }));
 
 import app from '../../../src/app';
-import { query } from '../../../src/config/database';
+import { query, withTransaction } from '../../../src/config/database';
 import { adminToken } from '../../helpers/adminToken';
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
@@ -104,5 +104,29 @@ describe('PATCH /api/v1/admin/admins/:adminId/status — H1 토큰 철회', () =
         );
         expect(revokeCall).toBeTruthy();
         expect((revokeCall?.[1] as unknown[])?.[0]).toBe('a1');
+    });
+});
+
+describe('POST /api/v1/admin/admins/:adminId/password — 세션 철회', () => {
+    it('비밀번호 재설정 시 해당 어드민의 admin_refresh_tokens 를 전부 철회한다', async () => {
+        // getManagedOrThrow(SELECT) → 감사 로그 INSERT 순으로 query 가 호출된다.
+        mockQuery
+            .mockResolvedValueOnce([MANAGED_ROW] as never) // 존재 검증
+            .mockResolvedValueOnce(undefined as never);    // writeAuditLog
+        const connQuery = jest.fn().mockResolvedValue({ affectedRows: 1 });
+        (withTransaction as unknown as jest.Mock).mockImplementation(
+            async (cb: (c: { query: jest.Mock }) => Promise<unknown>) => cb({ query: connQuery }),
+        );
+
+        const res = await request(app)
+            .post('/api/v1/admin/admins/a1/password')
+            .set('Authorization', `Bearer ${adminToken('admin')}`)
+            .send({ password: 'new-password-123' });
+
+        expect(res.status).toBe(200);
+        const sqls = connQuery.mock.calls.map((c) => String(c[0]));
+        expect(sqls[0]).toMatch(/UPDATE admin_users SET password/);
+        expect(sqls[1]).toMatch(/UPDATE admin_refresh_tokens SET revoked_at/);
+        expect(connQuery.mock.calls[1][1]).toEqual(['a1']);
     });
 });

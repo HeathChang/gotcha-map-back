@@ -3,7 +3,7 @@
  * 계정 생성/상태변경/비밀번호 재설정. member 생성 시 담당 매장(store_id) 배정.
  * 모든 mutation 은 감사 로그(targetType=admin_user) 기록.
  */
-import { query } from '../config/database';
+import { query, withTransaction } from '../config/database';
 import { AdminRole } from '../types';
 import { ConflictError, NotFoundError } from '../utils/errors';
 import { hashPassword } from '../utils/password';
@@ -202,7 +202,16 @@ export async function resetAdminPassword(
 ): Promise<void> {
     await getManagedOrThrow(adminId); // 존재 검증
     const hashed = await hashPassword(newPassword);
-    await query('UPDATE admin_users SET password = ? WHERE admin_id = ?', [hashed, adminId]);
+    await withTransaction(async (conn) => {
+        await conn.query('UPDATE admin_users SET password = ? WHERE admin_id = ?', [hashed, adminId]);
+        // 비밀번호가 바뀌면 그 운영자의 기존 세션(refresh 체인)을 전부 끊는다.
+        // 소비자 changePassword/confirmPasswordReset(X13)과 동일 정책 — 침해 계정 복구 시
+        // 공격자 세션이 최대 14일 살아남던 비대칭을 맞춘다.
+        await conn.query(
+            'UPDATE admin_refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE admin_id = ? AND revoked_at IS NULL',
+            [adminId],
+        );
+    });
 
     // 비밀번호 평문/해시는 diff 에 절대 남기지 않는다.
     await writeAuditLog({
